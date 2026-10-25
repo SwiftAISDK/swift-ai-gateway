@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "package": "swift-ai-gateway",
+  "status": "coarse-import",
+  "upstream": [
+    {
+      "name": "@ai-sdk/gateway",
+      "implementation": [
+        "packages/gateway/src"
+      ],
+      "tests": [
+        "packages/gateway/scripts/generate-model-settings.test.ts",
+        "packages/gateway/src/errors/as-gateway-error.test.ts",
+        "packages/gateway/src/errors/create-gateway-error.test.ts",
+        "packages/gateway/src/errors/extract-api-call-response.test.ts",
+        "packages/gateway/src/errors/gateway-error-types.test.ts",
+        "packages/gateway/src/errors/parse-auth-method.test.ts",
+        "packages/gateway/src/gateway-batch.test.ts",
+        "packages/gateway/src/gateway-decision-model.test.ts",
+        "packages/gateway/src/gateway-embedding-model.test.ts",
+        "packages/gateway/src/gateway-fetch-metadata.test.ts",
+        "packages/gateway/src/gateway-generation-info.test.ts",
+        "packages/gateway/src/gateway-image-model.test.ts",
+        "packages/gateway/src/gateway-language-model.test.ts",
+        "packages/gateway/src/gateway-provider-options.test.ts",
+        "packages/gateway/src/gateway-provider.test.ts",
+        "packages/gateway/src/gateway-realtime-auth.test.ts",
+        "packages/gateway/src/gateway-realtime-model.test.ts",
+        "packages/gateway/src/gateway-reranking-model.test.ts",
+        "packages/gateway/src/gateway-speech-model-stream.test.ts",
+        "packages/gateway/src/gateway-speech-model.test.ts",
+        "packages/gateway/src/gateway-spend-report.test.ts",
+        "packages/gateway/src/gateway-transcription-model.test.ts",
+        "packages/gateway/src/gateway-video-model.test.ts",
+        "packages/gateway/src/lazy-schemas.test.ts",
+        "packages/gateway/src/tool/browserbase-fetch.test.ts",
+        "packages/gateway/src/tool/browserbase-search.test.ts",
+        "packages/gateway/src/tool/parallel-search.test.ts",
+        "packages/gateway/src/tool/tako-search.test.ts",
+        "packages/gateway/src/vercel-environment.test.ts"
+      ]
+    }
+  ],
+  "swift": {
+    "sources": [
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayConfiguration.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayDecisionModel.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayErrors.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayEvaluationModel.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayMediaModels.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayModels.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayParsing.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingTranscriptionModel.swift"
+    ],
+    "tests": [
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/FixtureDownloadTransport.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayBatchVideoAndTakoUpstreamParityTests.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewaySpeechSocketTestSupport.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayStreamingTranscriptionUpstreamParityTests.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/TestSupport.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/WeeklyGatewaySpeech20261025Tests.swift"
+    ],
+    "resources": []
+  },
+  "differences": [
+    {
+      "kind": "native-adaptation",
+      "reason": "Preserve Swift async/await, Sendable, Foundation transport and existing documented gaps; see Docs/CoreV6Parity.md and PortingStatus.md."
+    }
+  ],
+  "reviewNote": "M6: Gateway runtime, auth/configuration, management APIs, batch, media/decision adapters and focused tests extracted. Gateway error types stay in core for AIError.gateway, while provider error parsing is owned here. Shared core socket machinery is reused; existing behavior and gaps remain unchanged."
+}

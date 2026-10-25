@@ -1,0 +1,24 @@
+[
+  {
+    "order": 21,
+    "providerID": "gateway",
+    "upstreamPackage": "@ai-sdk/gateway",
+    "factoryNames": [
+      "AIProviders.gateway"
+    ],
+    "capabilities": [
+      "language",
+      "embedding",
+      "image",
+      "transcription",
+      "speech",
+      "video",
+      "reranking",
+      "evaluation",
+      "decision"
+    ],
+    "files": false,
+    "skills": false,
+    "notes": "Gateway mirrors upstream 4.0.126: default `/v4/ai` base URL, `AI_GATEWAY_API_KEY`/`VERCEL_OIDC_TOKEN` auth, team scoping, protocol/auth-method headers, versioned user-agent suffix, language/embedding/image/video/reranking/speech/transcription aliases, durable Batch V4 start/status/results with ordered mixed content, callback URL forwarding, reconciled nonnegative native request counts, typed `not_found` errors, Tako Search, async-video start/status and native callback registration, unary transcription plus duplex streaming transcription, and a callable experimental transcription factory that mints short-lived route-bound tokens. Gateway providerOptions cover BYOK, routing order/fallbacks, provider allow-lists, prompt-training restrictions, `has` filtering, sort, serviceTier, quota, and tags; response/provider metadata, model/credits/spend/generation APIs, retryable structured errors, and provider tools are retained. Full realtime model sessions, Vercel o11y headers, metadata-cache refresh policy, ProviderV4 type names, ESM-only packaging, Node 22 engines, and workflow serialization helpers remain JS/runtime-only gaps. The 2026-09-20 pass adds native Evaluation V4 models, catalog discovery, headers, abort propagation, result metadata, and structured error mapping. The 2026-09-27 pass adds Browserbase search and fetch tools, forward-compatible has filters, and provider-owned batch cancellation with lifecycle-status validation. Gateway 4.0.95 also validates conditional Evaluation V4 fallbacks and attributes results to the model that actually answered. The 2026-10-04 pass routes credits team IDs/slugs through query parameters, accepts all-question conditional evaluation fallback thresholds, and preserves native audio usage including stream finishes. The 2026-10-11 pass: Decision V4 uses /decision-model with normalized inline file evidence; batch JSONL downloads have a configurable 64 MiB default line limit. Shared embedding dimensions and missing xAI diarization evidence are handled. The 2026-10-23 pass: Decision requests forward optional maxOutputTokens and reasoning without adding absent defaults. The 2026-10-25 pass: Native streaming speech, speech-bound client secrets and interoperable WebSocket envelopes are available. Parallel Search supports GA modes, top-level maxCharsTotal, fetch timeout/cache policy and location; raw results preserve GA snake_case fields."
+  }
+]

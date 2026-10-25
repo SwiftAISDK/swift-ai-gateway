@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "package": "swift-ai-gateway",
+  "version": "1.0.0",
+  "releaseID": "modular-3",
+  "source": {
+    "commit": "7fc9b4cd72f8f83b75ba7eee2e38d37127539317",
+    "baseCommit": "7fc9b4cd72f8f83b75ba7eee2e38d37127539317",
+    "workingTree": false,
+    "inputsSHA256": "49b802ba4a30454f78c9886ab3114537ef659ab3e6db7775479b7351f6e3f0ab"
+  },
+  "dependencies": [
+    {
+      "package": "swift-ai-core",
+      "from": "1.1.0"
+    }
+  ],
+  "changes": [
+    {
+      "id": "remaining-package-extraction",
+      "notes": "Extract the existing runtime, typed settings and standalone tests from the compatibility aggregate. Preserve the reviewed npm baseline and existing capability/gap boundaries.",
+      "compatibility": "Initial independent Swift package version. Existing SwiftAISDK entry points remain in the development compatibility facade; no npm-version equivalence is implied."
+    }
+  ],
+  "canonicalDirectory": "Packages/swift-ai-gateway",
+  "upstream": [
+    {
+      "name": "@ai-sdk/gateway",
+      "reviewedVersion": "4.0.126",
+      "ledgerKind": "provider",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`",
+      "reviewStatus": "imported-reviewed-with-gaps",
+      "archiveIntegrity": "sha512-gOrvnfrWxslTws5puMe+CvEDjZ0rxbpQYLZgdngQl1g/z3mRc5sllcflVAhy2xJSZacrWtsXwua+NJoc/IKZDw==",
+      "sourceRef": "npm:@ai-sdk/gateway@4.0.126",
+      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
+      "testRefRelationship": "inventory-snapshot-not-release-verified",
+      "contractFamilies": [],
+      "contractReview": "not-imported; inspect upstream declarations before extraction"
+    }
+  ],
+  "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
+  "canonicalInputs": [
+    {
+      "canonicalPath": ".github/workflows/package-check.yml",
+      "sha256": "7ff448e130f7aed96c38accdf828b6d993997ebc5317358347e9a70a649e67ca"
+    },
+    {
+      "canonicalPath": "LICENSE",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Package.swift",
+      "sha256": "4bbbc98884016686682f95b7ed950b5ece854557408b1b1407a35aa3fbaecaff"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Porting/map.json",
+      "sha256": "60e8a8197eab17e93dd74868d93e18116fe6a38efe7d5df977ce93e1bf94a9d0"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/README.md",
+      "sha256": "b0bf2fe67cea0f8372fdfca6e88d63ecca50d08f2a10110a2cdc8f0cd0c131d9"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayConfiguration.swift",
+      "sha256": "344ca5fb3d0f8d197302020d63575d1f127915cf61b6e1b668f7ccf61b8bb9e1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayDecisionModel.swift",
+      "sha256": "3fb1818fd76ff2606a6c1c650a39efdeaeea2e8cc2b755316ff1370efea4b2e3"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayErrors.swift",
+      "sha256": "94395a655bbb962ecf3a7a73ca3661fe1aab12a609843b9084902e3fbda463b4"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayEvaluationModel.swift",
+      "sha256": "a4ccf7fabeed3a30d92043fbe7b638dbc528216c903728013e6db1f3d56bb2e6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayMediaModels.swift",
+      "sha256": "8d0741007fd2895741f651ea325bf2c1c4f2aae4650e8bc0d3d1f1b69f3eabee"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayModels.swift",
+      "sha256": "78b434f7d02253a02796b233818f638e263afde34d0a8c806a63704fbbda88c1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayParsing.swift",
+      "sha256": "6c8378e529934545026794ba5ad8c3d5036a466fbac6dca5e21e4a52701ed4b1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
+      "sha256": "946e0a1704396a21c256f4807e11d8aa859f2b2f7248ab6878e1c1b8d2ec9cd3"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
+      "sha256": "c8189825cbac5aa74d9e06ace929826d0be1a02e5b5fc0412369346380244a42"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingTranscriptionModel.swift",
+      "sha256": "8fa5c4c0e655b1ea3ec647a0b86785128320c9bfc8f8fc5222d7cba7225190ff"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/FixtureDownloadTransport.swift",
+      "sha256": "8cfac6634d0d36432d99ebd391a949b593e9eae65d263dc99d441a59fbf0a767"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayBatchVideoAndTakoUpstreamParityTests.swift",
+      "sha256": "936c26f8624364b8d0873fd9d002974a8cd04faf75eaee8e8178ad1091370af1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewaySpeechSocketTestSupport.swift",
+      "sha256": "025ed5c0c3795f86fe6c2e2863b1b8ea245e5d50123c3afc14b5b7676fbfd0fd"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayStreamingTranscriptionUpstreamParityTests.swift",
+      "sha256": "a5d6754c93a3abbf2b02f97afe9c9ffabe080b3d012b3029a6f2542e3347546e"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
+      "sha256": "0319641db51df2c60cbe3f28365de6656e4224f2a2b617f0cee68658a43911bd"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
+      "sha256": "f5565eb1a8ff3213619f525650878f0bed22c6e0235a5b9da3a148682b17ecdc"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/TestSupport.swift",
+      "sha256": "7da72ae97fb00936881f4efa04bd0e5915470feff2f2c80b739628f3ebcf9f44"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/WeeklyGatewaySpeech20261025Tests.swift",
+      "sha256": "01ce3a86f8c3472398dd5dd30bb5222673a73ca779bcde40b154b65f67541b64"
+    }
+  ]
+}
