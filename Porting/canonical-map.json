@@ -62,6 +62,7 @@
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/TestSupport.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261101CancellationTests.swift",
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/WeeklyGatewaySpeech20261025Tests.swift"
     ],
     "resources": []
@@ -72,5 +73,5 @@
       "reason": "Preserve Swift async/await, Sendable, Foundation transport and existing documented gaps; see Docs/CoreV6Parity.md and PortingStatus.md."
     }
   ],
-  "reviewNote": "M6: Gateway runtime, auth/configuration, management APIs, batch, media/decision adapters and focused tests extracted. Gateway error types stay in core for AIError.gateway, while provider error parsing is owned here. Shared core socket machinery is reused; existing behavior and gaps remain unchanged."
+  "reviewNote": "M6: Gateway runtime, auth/configuration, management APIs, batch, media/decision adapters and focused tests extracted. Gateway error types stay in core for AIError.gateway, while provider error parsing is owned here. Shared core socket machinery is reused; existing behavior and gaps remain unchanged. 2026-11-01: reviewed @ai-sdk/gateway 4.0.126 -> 4.0.132 archives and release-matched tests 612be2311464804d1e4897afacbf8f3fc2f6d9e3 -> 028a025398782f4938303f48fbeee45c79af544b. Ported caller cancellation/timeout identity in HTTP/token and speech/audio-stream paths, including task cancellation without hanging. Callback keys refresh per send/connection and reject blank values; metadata errors do not re-resolve authentication. New model type literals already fit native open strings. Weekly20261101CancellationTests translate changed as-gateway-error/language/speech-stream/transcription tests. Duplex regression verifies fresh connection credentials, case-insensitive caller overrides and authentication subprotocols for speech and transcription."
 }

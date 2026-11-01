@@ -60,6 +60,7 @@ public final class GatewayDecisionModel: AIDecisionModelV4, @unchecked Sendable 
         } catch let error as GatewayError {
             throw error
         } catch {
+            if gatewayIsCallerCancellation(error) { throw error }
             throw GatewayError(
                 type: .internalServerError,
                 message: String(describing: error),

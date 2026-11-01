@@ -22,14 +22,14 @@ extension GatewayTranscriptionModel {
         try request.abortSignal?.throwIfAborted()
 
         let startFrame = gatewayTranscriptionStartFrame(request)
-        let headers = config.headers
-            .mergingHeaders(request.headers)
-            .mergingHeaders([
-                "ai-transcription-model-specification-version": "4",
-                "ai-model-id": modelID
-            ])
         let connection: any AIDuplexWebSocketConnection
         do {
+            let headers = try await config.http.resolvedHeaders(request.headers)
+                .mergingHeaders([
+                    "ai-transcription-model-specification-version": "4",
+                    "ai-model-id": modelID
+                ])
+            try request.abortSignal?.throwIfAborted()
             connection = try await webSocketTransport.connect(
                 AIDuplexWebSocketRequest(
                     url: try gatewayTranscriptionWebSocketURL(
@@ -322,7 +322,7 @@ private final class GatewayStreamingTranscriptionSession:
                     ),
                     closeCode: 1_000
                 )
-            } else if !(error is CancellationError), !isCompleted {
+            } else if !isCompleted {
                 complete(
                     throwing: gatewayTranscriptionConnectionError(error),
                     closeCode: 1_000
@@ -354,8 +354,7 @@ private final class GatewayStreamingTranscriptionSession:
                     try await connection.send(text: gatewayAudioDoneFrame)
                 }
             } catch {
-                if !isCompletedOrAudioStopped,
-                   !(error is CancellationError) {
+                if !isCompletedOrAudioStopped {
                     complete(
                         throwing: gatewayTranscriptionConnectionError(error),
                         closeCode: 1_000
@@ -741,7 +740,7 @@ private func gatewayErrorFromStreamPart(_ error: JSONValue) -> GatewayError {
 }
 
 private func gatewayTranscriptionConnectionError(_ error: Error) -> Error {
-    if error is AIAbortError || error is GatewayError {
+    if gatewayIsCallerCancellation(error) || error is GatewayError {
         return error
     }
     return GatewayError(

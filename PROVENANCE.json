@@ -1,41 +1,49 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-gateway",
-  "version": "1.0.0",
-  "releaseID": "modular-3",
+  "version": "1.1.0",
+  "releaseID": "weekly-upstream-20261101",
   "source": {
-    "commit": "7fc9b4cd72f8f83b75ba7eee2e38d37127539317",
-    "baseCommit": "7fc9b4cd72f8f83b75ba7eee2e38d37127539317",
+    "commit": "ea057797494ab9bb66df8c6bfd8edc10245b20e7",
+    "baseCommit": "ea057797494ab9bb66df8c6bfd8edc10245b20e7",
     "workingTree": false,
-    "inputsSHA256": "49b802ba4a30454f78c9886ab3114537ef659ab3e6db7775479b7351f6e3f0ab"
+    "inputsSHA256": "b46f3e07b0a583d6fee81035987d74a06fc5c6109cbdf228144d1172d2c3676e"
   },
   "dependencies": [
     {
       "package": "swift-ai-core",
-      "from": "1.1.0"
+      "from": "1.2.0"
     }
   ],
   "changes": [
     {
-      "id": "remaining-package-extraction",
-      "notes": "Extract the existing runtime, typed settings and standalone tests from the compatibility aggregate. Preserve the reviewed npm baseline and existing capability/gap boundaries.",
-      "compatibility": "Initial independent Swift package version. Existing SwiftAISDK entry points remain in the development compatibility facade; no npm-version equivalence is implied."
+      "id": "weekly-upstream-20261101",
+      "notes": "Additive native apiKeyProvider resolves a fresh nonempty credential per send or duplex connection; blank callbacks fail before send. Metadata failures do not invoke the supplier again for authentication classification. HTTP language/stream and client-secret paths preserve caller AbortError/TimeoutError equivalents; native AIAbortError, CancellationError and Foundation cancellation/timeout errors retain identity instead of becoming Gateway 500 errors. Upstream text/audio input failures reach speech/transcription output streams and close sockets, including task cancellation rather than leaving transcription output pending. Speech/transcription WS connections resolve credentials after case-insensitive caller header overrides, preserve auth subprotocols, recheck abort after async supplier and release input on connection/supplier failure. Reviewed upstream: @ai-sdk/gateway 4.0.126 to 4.0.132. Validation passed: node Scripts/test-packages.mjs (all 52 owning package suites and the compatibility facade); node Scripts/sdk.mjs generate --check; node --test Scripts/tests/*.test.cjs (27 passed); docs-site check and build (100 pages). Live provider calls were not run.",
+      "compatibility": "Minor release for additive native API; existing static settings and call sites remain compatible. Updated direct dependency minimums are recorded in the manifest. Existing documented JS/framework and native product gaps remain; version-delta review does not imply full parity or live-service testing. Explicit custom authentication skips an unused credential supplier, a deliberate native callback-order adaptation."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-gateway",
   "upstream": [
     {
       "name": "@ai-sdk/gateway",
-      "reviewedVersion": "4.0.126",
+      "reviewedVersion": "4.0.132",
       "ledgerKind": "provider",
-      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-gOrvnfrWxslTws5puMe+CvEDjZ0rxbpQYLZgdngQl1g/z3mRc5sllcflVAhy2xJSZacrWtsXwua+NJoc/IKZDw==",
-      "sourceRef": "npm:@ai-sdk/gateway@4.0.126",
-      "testRef": "682e2dd71456f14f9da33a1b983d1998c3a1184c",
-      "testRefRelationship": "inventory-snapshot-not-release-verified",
-      "contractFamilies": [],
-      "contractReview": "not-imported; inspect upstream declarations before extraction"
+      "archiveIntegrity": "sha512-ppStDEz96g+JEuxGiVTP29OKBjPyYZXRxs38wnq3427U2QbZtxe6TukrgSAAq0n4yaHvSvVAWJY9kBlW8XudYg==",
+      "sourceRef": "npm:@ai-sdk/gateway@4.0.132",
+      "testRef": "028a025398782f4938303f48fbeee45c79af544b",
+      "testRefRelationship": "matching-release",
+      "contractFamilies": [
+        "EmbeddingModelV4",
+        "ImageModelV4",
+        "LanguageModelV4",
+        "ProviderV4",
+        "RerankingModelV4",
+        "SpeechModelV4",
+        "TranscriptionModelV4"
+      ],
+      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
     }
   ],
   "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
@@ -54,7 +62,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Porting/map.json",
-      "sha256": "60e8a8197eab17e93dd74868d93e18116fe6a38efe7d5df977ce93e1bf94a9d0"
+      "sha256": "4802ba7c95b4bb15c657bd46abdd45832e4d8fb6a95170649c2f3901e58ae517"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/README.md",
@@ -62,15 +70,15 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayConfiguration.swift",
-      "sha256": "344ca5fb3d0f8d197302020d63575d1f127915cf61b6e1b668f7ccf61b8bb9e1"
+      "sha256": "c89a1f5b3753efd59ce33f625ddb396c707b65d3f7d6388265a38de04a6853e0"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayDecisionModel.swift",
-      "sha256": "3fb1818fd76ff2606a6c1c650a39efdeaeea2e8cc2b755316ff1370efea4b2e3"
+      "sha256": "e0745603952589931edb5499dc636f68a984bb597cdb4b2abf54f9e2d4eaaa44"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayErrors.swift",
-      "sha256": "94395a655bbb962ecf3a7a73ca3661fe1aab12a609843b9084902e3fbda463b4"
+      "sha256": "12b43c66998d95f33f0fb26c36b01d90226daee2c76accece4b0facc1b64fe53"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayEvaluationModel.swift",
@@ -90,15 +98,15 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
-      "sha256": "946e0a1704396a21c256f4807e11d8aa859f2b2f7248ab6878e1c1b8d2ec9cd3"
+      "sha256": "71e956d245f5b44fcb8012626e1d112c1c1f48a17c3265b72da585b66bdd3a3f"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
-      "sha256": "c8189825cbac5aa74d9e06ace929826d0be1a02e5b5fc0412369346380244a42"
+      "sha256": "2a6a361696eff1990e44298efc46e4c56a79a8da755af4e13d82440fe451e9d5"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingTranscriptionModel.swift",
-      "sha256": "8fa5c4c0e655b1ea3ec647a0b86785128320c9bfc8f8fc5222d7cba7225190ff"
+      "sha256": "68ddfc51ef0db301e0f72bf789455f18d06acac14725a84f89f2594ae5af842b"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/FixtureDownloadTransport.swift",
@@ -118,7 +126,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
-      "sha256": "0319641db51df2c60cbe3f28365de6656e4224f2a2b617f0cee68658a43911bd"
+      "sha256": "39a63561d99f0608b84a758bfab8c3d85b24f2c496c5c413a781136b57ca6080"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
@@ -127,6 +135,10 @@
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/TestSupport.swift",
       "sha256": "7da72ae97fb00936881f4efa04bd0e5915470feff2f2c80b739628f3ebcf9f44"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261101CancellationTests.swift",
+      "sha256": "f559113d5105625bd6b71cc6573fe9a3cb3298dde503390ce4ebd1d17f1c4fd1"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/WeeklyGatewaySpeech20261025Tests.swift",

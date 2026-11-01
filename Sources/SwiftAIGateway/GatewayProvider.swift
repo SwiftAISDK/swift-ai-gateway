@@ -188,6 +188,7 @@ public struct GatewayTranscriptionFactory: Sendable {
         } catch let error as GatewayError {
             throw error
         } catch {
+            if gatewayIsCallerCancellation(error) { throw error }
             throw GatewayError(
                 type: .internalServerError,
                 message: String(describing: error),
@@ -243,6 +244,16 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         webSocketTransport: any AIDuplexWebSocketTransport
     ) throws {
         var settings = settings
+        let credentialResolver = settings.apiKeyProvider.map { resolve in
+            AIAsyncCredential {
+                let key = try await resolve()
+                guard !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw AIError.invalidArgument(argument: "apiKeyProvider", message: "AI Gateway API key must be a non-empty string.")
+                }
+                return key
+            }
+        }
+        if let credentialResolver { settings.apiKey = credentialResolver.placeholder }
         if let teamIDOrSlug {
             settings.headers["x-vercel-ai-gateway-team"] = teamIDOrSlug
         }
@@ -257,10 +268,10 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         if normalizedHeaders["ai-gateway-auth-method"] == nil {
             settings.headers["ai-gateway-auth-method"] = auth.method
         }
-        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.126")
+        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.132")
         let baseURL = withoutTrailingSlash(settings.baseURL ?? "https://ai-gateway.vercel.sh/v4/ai")
         let queryParams = settings.queryParams
-        config = GatewayModelConfiguration(http: .init(providerID: providerID, headers: headers, transport: settings.transport,
+        config = GatewayModelConfiguration(http: .init(providerID: providerID, headers: headers, transport: settings.transport, credentialResolver: credentialResolver,
             url: { _, path in try providerURL("\(baseURL)\(path)", queryParams: queryParams) }), baseURL: baseURL,
             batchResultMaxLineBytes: try aiBatchResultLineLimit(settings.batchResultDownloads?.maxLineBytes))
         self.webSocketTransport = webSocketTransport

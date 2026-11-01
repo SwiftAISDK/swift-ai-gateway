@@ -4,6 +4,15 @@ import SwiftAITransport
 import SwiftAIProviderUtilities
 import SwiftAI
 
+/// Native equivalents of caller AbortError/TimeoutError must retain identity.
+func gatewayIsCallerCancellation(_ error: any Error) -> Bool {
+    if error is AIAbortError || error is CancellationError { return true }
+    let error = error as NSError
+    if error.domain == NSURLErrorDomain, [NSURLErrorCancelled, NSURLErrorTimedOut].contains(error.code) { return true }
+    let name = error.userInfo["name"] as? String ?? error.domain
+    return name == "AbortError" || name == "TimeoutError"
+}
+
 
 public func gatewayErrorFromHTTPStatus(statusCode: Int, body: String, headers: [String: String]) -> GatewayError {
     if let raw = try? secureJSONParse(body) {

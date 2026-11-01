@@ -41,7 +41,8 @@ extension GatewaySpeechModel {
     public func stream(_ request: StreamingSpeechRequest) async throws -> StreamingSpeechModelResult {
         do {
             try request.abortSignal?.throwIfAborted()
-            let headers = config.headers.mergingHeaders(request.headers).mergingHeaders(["ai-speech-model-specification-version": "4", "ai-model-id": modelID])
+            let headers = try await config.http.resolvedHeaders(request.headers).mergingHeaders(["ai-speech-model-specification-version": "4", "ai-model-id": modelID])
+            try request.abortSignal?.throwIfAborted()
             let connection = try await webSocketTransport.connect(.init(url: try gatewaySpeechWebSocketURL(baseURL: config.baseURL, modelID: modelID),
                                                                         headers: headers, protocols: gatewaySpeechProtocols(headers), abortSignal: request.abortSignal))
             let start = SpeechStreamEnvelope.startFrame(request)
@@ -118,6 +119,6 @@ func speechGatewayServerError(_ raw: JSONValue) -> any Error {
 }
 
 func speechGatewayConnectionError(_ error: any Error) -> any Error {
-    if error is GatewayError || error is AIAbortError || error is CancellationError || error is AIStreamingSpeechError { return error }
+    if error is GatewayError || gatewayIsCallerCancellation(error) || error is AIStreamingSpeechError { return error }
     return GatewayError(type: .internalServerError, message: "Connection error on AI Gateway speech stream: \(error)", statusCode: 500)
 }
