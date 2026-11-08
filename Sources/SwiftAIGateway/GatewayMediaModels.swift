@@ -66,7 +66,12 @@ public final class GatewayImageModel: ImageModel, @unchecked Sendable {
         if let size = request.size { body["size"] = .string(size) }
         if let aspectRatio = request.aspectRatio { body["aspectRatio"] = .string(aspectRatio) }
         if let seed = request.seed { body["seed"] = .number(Double(seed)) }
-        if !request.providerOptions.isEmpty { body["providerOptions"] = .object(request.providerOptions) }
+        var providerOptions = request.providerOptions
+        if var gateway = providerOptions["gateway"]?.objectValue {
+            gateway.removeValue(forKey: "experimental_streamingImageDecoding")
+            providerOptions["gateway"] = gateway.isEmpty ? nil : .object(gateway)
+        }
+        if !providerOptions.isEmpty { body["providerOptions"] = .object(providerOptions) }
         body.merge(request.extraBody) { _, new in new }
         if !request.files.isEmpty {
             body["files"] = .array(request.files.map(gatewayImageFile))
@@ -84,7 +89,7 @@ public final class GatewayImageModel: ImageModel, @unchecked Sendable {
             urls: images.compactMap { $0["url"]?.stringValue },
             base64Images: images.compactMap { $0["data"]?.stringValue ?? $0.stringValue ?? $0["b64_json"]?.stringValue },
             rawValue: raw,
-            warnings: gatewayWarnings(from: raw["warnings"]),
+            warnings: gatewayWarnings(from: raw["warnings"]) + (request.providerOptions["gateway"]?["experimental_streamingImageDecoding"] == true ? [AIWarning(type: "unsupported", feature: "gateway.experimental_streamingImageDecoding", message: "Native image results retain buffered base64 strings; incremental binary image decoding is not supported.")] : []),
             providerMetadata: gatewayProviderMetadata(raw["providerMetadata"] ?? raw["provider_metadata"]),
             requestMetadata: imageGenerationRequestMetadata(request, body: .object(body)),
             responseMetadata: aiResponseMetadata(from: raw, response: response.response, modelID: modelID),
@@ -162,7 +167,8 @@ public final class GatewayVideoModel: AsyncVideoModel, @unchecked Sendable {
             warnings: gatewayWarnings(from: raw["warnings"]),
             providerMetadata: gatewayProviderMetadata(raw["providerMetadata"] ?? raw["provider_metadata"]),
             requestMetadata: videoGenerationRequestMetadata(request, body: .object(body)),
-            responseMetadata: aiResponseMetadata(from: raw, response: response, modelID: modelID)
+            responseMetadata: aiResponseMetadata(from: raw, response: response, modelID: modelID),
+            uploadedVideos: videos.compactMap { $0["type"] == "uploaded" ? $0["mediaType"]?.stringValue.map(UploadedVideo.init) : nil }
         )
     }
 
@@ -232,7 +238,8 @@ public final class GatewayVideoModel: AsyncVideoModel, @unchecked Sendable {
                 rawValue: raw,
                 warnings: gatewayWarnings(from: raw["warnings"]),
                 providerMetadata: providerMetadata,
-                responseMetadata: responseMetadata
+                responseMetadata: responseMetadata,
+                uploadedVideos: videos.compactMap { $0["type"] == "uploaded" ? $0["mediaType"]?.stringValue.map(UploadedVideo.init) : nil }
             ))
         case "error":
             return .failed(
@@ -398,13 +405,14 @@ public final class GatewayTranscriptionModel:
         let response = try await config.sendJSONResponse(path: "/transcription-model", modelID: modelID, body: .object(body), headers: request.headers.mergingHeaders([
             "ai-transcription-model-specification-version": "4",
             "ai-model-id": modelID
-        ]))
+        ]), abortSignal: request.abortSignal)
         let raw = response.json
         guard let text = raw["text"]?.stringValue else {
             throw AIError.invalidResponse(provider: providerID, message: "No text found in Gateway transcription response.")
         }
-        let segments = standardTranscriptionSegments(from: raw)
+        let segments = gatewayTranscriptionTimings(raw["segments"])
         var warnings = gatewayWarnings(from: raw["warnings"])
+        if request.timestampGranularities?.isEmpty == false { warnings.append(.init(type: "unsupported", feature: "timestampGranularities", message: "The AI Gateway adapter does not forward the shared timestampGranularities option.")) }
         if (modelID.hasPrefix("xai/") || modelID.hasPrefix("spacexai/")),
            (request.providerOptions["xai"]?["diarize"]?.boolValue == true || request.providerOptions["spacexai"]?["diarize"]?.boolValue == true),
            !gatewayContainsSpeaker(raw) {
@@ -420,8 +428,18 @@ public final class GatewayTranscriptionModel:
             providerMetadata: gatewayProviderMetadata(raw["providerMetadata"] ?? raw["provider_metadata"]),
             requestMetadata: AIRequestMetadata(body: .object(body), headers: request.headers),
             responseMetadata: aiResponseMetadata(from: raw, response: response.response, modelID: modelID),
-            usage: raw["usage"]?.objectValue
+            usage: raw["usage"]?.objectValue,
+            words: raw["words"]?.arrayValue.map { gatewayTranscriptionTimings(.array($0)) }
         )
+    }
+}
+
+private func gatewayTranscriptionTimings(_ items: JSONValue?) -> [TranscriptionSegment] {
+    (items?.arrayValue ?? []).compactMap { item in
+        guard let text = item["text"]?.stringValue else { return nil }
+        let start = item["startSecond"]?.doubleValue ?? item["start"]?.doubleValue ?? 0
+        let end = item["endSecond"]?.doubleValue ?? item["end"]?.doubleValue ?? start
+        return .init(text: text, startSecond: start, endSecond: end)
     }
 }
 

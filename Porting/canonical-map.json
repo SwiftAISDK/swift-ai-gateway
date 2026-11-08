@@ -19,6 +19,7 @@
         "packages/gateway/src/gateway-decision-model.test.ts",
         "packages/gateway/src/gateway-embedding-model.test.ts",
         "packages/gateway/src/gateway-fetch-metadata.test.ts",
+        "packages/gateway/src/gateway-generation-info.test-d.ts",
         "packages/gateway/src/gateway-generation-info.test.ts",
         "packages/gateway/src/gateway-image-model.test.ts",
         "packages/gateway/src/gateway-language-model.test.ts",
@@ -35,6 +36,11 @@
         "packages/gateway/src/lazy-schemas.test.ts",
         "packages/gateway/src/tool/browserbase-fetch.test.ts",
         "packages/gateway/src/tool/browserbase-search.test.ts",
+        "packages/gateway/src/tool/deepseek-fetch.test-d.ts",
+        "packages/gateway/src/tool/deepseek-fetch.test.ts",
+        "packages/gateway/src/tool/deepseek-search.test-d.ts",
+        "packages/gateway/src/tool/deepseek-search.test.ts",
+        "packages/gateway/src/tool/gateway-tool-error.test.ts",
         "packages/gateway/src/tool/parallel-search.test.ts",
         "packages/gateway/src/tool/tako-search.test.ts",
         "packages/gateway/src/vercel-environment.test.ts"
@@ -51,6 +57,7 @@
       "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayModels.swift",
       "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayParsing.swift",
       "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
+      "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeModel.swift",
       "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
       "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingTranscriptionModel.swift"
     ],
@@ -63,6 +70,8 @@
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/TestSupport.swift",
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261101CancellationTests.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261108GatewayTests.swift",
+      "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261108RealtimeIntegrationTests.swift",
       "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/WeeklyGatewaySpeech20261025Tests.swift"
     ],
     "resources": []
@@ -73,5 +82,5 @@
       "reason": "Preserve Swift async/await, Sendable, Foundation transport and existing documented gaps; see Docs/CoreV6Parity.md and PortingStatus.md."
     }
   ],
-  "reviewNote": "M6: Gateway runtime, auth/configuration, management APIs, batch, media/decision adapters and focused tests extracted. Gateway error types stay in core for AIError.gateway, while provider error parsing is owned here. Shared core socket machinery is reused; existing behavior and gaps remain unchanged. 2026-11-01: reviewed @ai-sdk/gateway 4.0.126 -> 4.0.132 archives and release-matched tests 612be2311464804d1e4897afacbf8f3fc2f6d9e3 -> 028a025398782f4938303f48fbeee45c79af544b. Ported caller cancellation/timeout identity in HTTP/token and speech/audio-stream paths, including task cancellation without hanging. Callback keys refresh per send/connection and reject blank values; metadata errors do not re-resolve authentication. New model type literals already fit native open strings. Weekly20261101CancellationTests translate changed as-gateway-error/language/speech-stream/transcription tests. Duplex regression verifies fresh connection credentials, case-insensitive caller overrides and authentication subprotocols for speech and transcription."
+  "reviewNote": "M6: Gateway runtime, auth/configuration, management APIs, batch, media/decision adapters and focused tests extracted. Gateway error types stay in core for AIError.gateway, while provider error parsing is owned here. Shared core socket machinery is reused; existing behavior and gaps remain unchanged. 2026-11-01: reviewed @ai-sdk/gateway 4.0.126 -> 4.0.132 archives and release-matched tests 612be2311464804d1e4897afacbf8f3fc2f6d9e3 -> 028a025398782f4938303f48fbeee45c79af544b. Ported caller cancellation/timeout identity in HTTP/token and speech/audio-stream paths, including task cancellation without hanging. Callback keys refresh per send/connection and reject blank values; metadata errors do not re-resolve authentication. New model type literals already fit native open strings. Weekly20261101CancellationTests translate changed as-gateway-error/language/speech-stream/transcription tests. Duplex regression verifies fresh connection credentials, case-insensitive caller overrides and authentication subprotocols for speech and transcription. 2026-11-08: reviewed @ai-sdk/gateway 4.0.132 -> 4.0.138 published source/declarations and matching-release tests. Ported generation costs, shared transcription words/warnings, uploaded video results and DeepSeek provider tools. Added native normalized realtime client-secret/server codec and refreshed OIDC fallback; preserved additive structured tool errors in unary/stream results. Seed zero already native. Model IDs remain unrestricted Strings. Client-only image decoding option is stripped and warns: incremental binary JSON decoding/byte-valued image results remain a precise native gap; buffered base64 results are retained. No complete/live parity claim."
 }

@@ -3,24 +3,27 @@
   "packages": [
     {
       "name": "@ai-sdk/gateway",
-      "reviewedVersion": "4.0.132",
+      "reviewedVersion": "4.0.138",
       "ledgerKind": "provider",
-      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-ppStDEz96g+JEuxGiVTP29OKBjPyYZXRxs38wnq3427U2QbZtxe6TukrgSAAq0n4yaHvSvVAWJY9kBlW8XudYg==",
-      "sourceRef": "npm:@ai-sdk/gateway@4.0.132",
-      "testRef": "028a025398782f4938303f48fbeee45c79af544b",
+      "archiveIntegrity": "sha512-7a/LGqioUyU2CmjRjMwnX4WR5V4vP3+YdPZEAbh7CH9OXf1GcPSsiySsHxNbqiDlDnL+KdqPvWeipIR7u/VFHA==",
+      "sourceRef": "npm:@ai-sdk/gateway@4.0.138",
+      "testRef": "0f3a85f92d1ce06ccde01d662407ef83e097a712",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
+        "DecisionModelV4",
         "EmbeddingModelV4",
         "ImageModelV4",
         "LanguageModelV4",
         "ProviderV4",
         "RerankingModelV4",
         "SpeechModelV4",
-        "TranscriptionModelV4"
+        "StreamingSpeechModelV4",
+        "TranscriptionModelV4",
+        "VideoModelV4"
       ],
-      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
+      "contractReview": "2026-11-08: published declarations/source and exact matching-release changed tests reviewed; native implementations, per-file dispositions and broader retained gaps are recorded in Docs/WeeklyUpstreamAudit20261108.json. Reviewed delta is not full-package or live-service parity."
     }
   ]
 }

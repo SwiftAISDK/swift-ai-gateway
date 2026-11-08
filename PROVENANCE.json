@@ -1,49 +1,52 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-gateway",
-  "version": "1.1.0",
-  "releaseID": "weekly-upstream-20261101",
+  "version": "1.2.0",
+  "releaseID": "weekly-upstream-20261108",
   "source": {
-    "commit": "ea057797494ab9bb66df8c6bfd8edc10245b20e7",
-    "baseCommit": "ea057797494ab9bb66df8c6bfd8edc10245b20e7",
+    "commit": "8e233ff96fb809445aff9a5c06bb6149a24b94da",
+    "baseCommit": "8e233ff96fb809445aff9a5c06bb6149a24b94da",
     "workingTree": false,
-    "inputsSHA256": "b46f3e07b0a583d6fee81035987d74a06fc5c6109cbdf228144d1172d2c3676e"
+    "inputsSHA256": "987359720075cb67dd8bc45bdc049aee4c5d5a42b67a7eb148e697ce5d18bd77"
   },
   "dependencies": [
     {
       "package": "swift-ai-core",
-      "from": "1.2.0"
+      "from": "1.3.0"
     }
   ],
   "changes": [
     {
-      "id": "weekly-upstream-20261101",
-      "notes": "Additive native apiKeyProvider resolves a fresh nonempty credential per send or duplex connection; blank callbacks fail before send. Metadata failures do not invoke the supplier again for authentication classification. HTTP language/stream and client-secret paths preserve caller AbortError/TimeoutError equivalents; native AIAbortError, CancellationError and Foundation cancellation/timeout errors retain identity instead of becoming Gateway 500 errors. Upstream text/audio input failures reach speech/transcription output streams and close sockets, including task cancellation rather than leaving transcription output pending. Speech/transcription WS connections resolve credentials after case-insensitive caller header overrides, preserve auth subprotocols, recheck abort after async supplier and release input on connection/supplier failure. Reviewed upstream: @ai-sdk/gateway 4.0.126 to 4.0.132. Validation passed: node Scripts/test-packages.mjs (all 52 owning package suites and the compatibility facade); node Scripts/sdk.mjs generate --check; node --test Scripts/tests/*.test.cjs (27 passed); docs-site check and build (100 pages). Live provider calls were not run.",
-      "compatibility": "Minor release for additive native API; existing static settings and call sites remain compatible. Updated direct dependency minimums are recorded in the manifest. Existing documented JS/framework and native product gaps remain; version-delta review does not imply full parity or live-service testing. Explicit custom authentication skips an unused credential supplier, a deliberate native callback-order adaptation."
+      "id": "weekly-upstream-20261108",
+      "notes": "Port generation costs, shared transcription words, uploaded video results, DeepSeek tools and native normalized realtime/server auth; preserve structured tool errors and explicit buffered-image limitation. Reviewed published upstream delta: @ai-sdk/gateway 4.0.132 to 4.0.138. Incremental binary image-stream decoding remains a documented gap; the unsupported flag is stripped with a warning. Validation passed: node Scripts/test-packages.mjs (all 52 owning packages plus the complete local facade; 3,965 reported tests and 33 explicit live skips); node Scripts/sdk.mjs dev test; node Scripts/sdk.mjs generate --check; node --test Scripts/tests/*.test.cjs (27 passed); core/provider isolation and version resolution; 52 deterministic package exports, 106 catalog consumers and four additional exact retained-minimum graphs; docs-site install/check/build (100 pages); git diff --check. No paid live-service calls were run. The publication pipeline requires successful Swift 6.3.3 CI at the exact canonical source before publishing.",
+      "compatibility": "Minor release for additive native functionality under the project convention. Existing call sites and exact old selectors are retained. Direct minimums change only for concrete API use or required inherited behavior. Version-delta review does not establish full-package parity or live-service acceptance. Updated direct ranges: swift-ai-core 1.2.0 to 1.3.0."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-gateway",
   "upstream": [
     {
       "name": "@ai-sdk/gateway",
-      "reviewedVersion": "4.0.132",
+      "reviewedVersion": "4.0.138",
       "ledgerKind": "provider",
-      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-ppStDEz96g+JEuxGiVTP29OKBjPyYZXRxs38wnq3427U2QbZtxe6TukrgSAAq0n4yaHvSvVAWJY9kBlW8XudYg==",
-      "sourceRef": "npm:@ai-sdk/gateway@4.0.132",
-      "testRef": "028a025398782f4938303f48fbeee45c79af544b",
+      "archiveIntegrity": "sha512-7a/LGqioUyU2CmjRjMwnX4WR5V4vP3+YdPZEAbh7CH9OXf1GcPSsiySsHxNbqiDlDnL+KdqPvWeipIR7u/VFHA==",
+      "sourceRef": "npm:@ai-sdk/gateway@4.0.138",
+      "testRef": "0f3a85f92d1ce06ccde01d662407ef83e097a712",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
+        "DecisionModelV4",
         "EmbeddingModelV4",
         "ImageModelV4",
         "LanguageModelV4",
         "ProviderV4",
         "RerankingModelV4",
         "SpeechModelV4",
-        "TranscriptionModelV4"
+        "StreamingSpeechModelV4",
+        "TranscriptionModelV4",
+        "VideoModelV4"
       ],
-      "contractReview": "2026-11-01: published declarations, source and exact matching-release changed tests reviewed; scoped dispositions and Swift translations are in Docs/WeeklyUpstreamAudit20261101.json. Existing broader product gaps remain; reviewed delta is not full-package parity."
+      "contractReview": "2026-11-08: published declarations/source and exact matching-release changed tests reviewed; native implementations, per-file dispositions and broader retained gaps are recorded in Docs/WeeklyUpstreamAudit20261108.json. Reviewed delta is not full-package or live-service parity."
     }
   ],
   "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
@@ -62,11 +65,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Porting/map.json",
-      "sha256": "4802ba7c95b4bb15c657bd46abdd45832e4d8fb6a95170649c2f3901e58ae517"
+      "sha256": "dab9ce169100c7fbec4ca473824912c687ef872a4600fc776aacb135f11f3440"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/README.md",
-      "sha256": "b0bf2fe67cea0f8372fdfca6e88d63ecca50d08f2a10110a2cdc8f0cd0c131d9"
+      "sha256": "cd6fd19e39ea291f25a529c1bc5dc1e4b03d1b1e8f9d08d029db23e848c466a3"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayConfiguration.swift",
@@ -86,11 +89,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayMediaModels.swift",
-      "sha256": "8d0741007fd2895741f651ea325bf2c1c4f2aae4650e8bc0d3d1f1b69f3eabee"
+      "sha256": "c5cbf8a6dd3ad10982a6264dd47f9160dd7702e6d287b58c07661ca110c8a4a3"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayModels.swift",
-      "sha256": "78b434f7d02253a02796b233818f638e263afde34d0a8c806a63704fbbda88c1"
+      "sha256": "62ae95bf4ca7786e30a17102380f0e5afc935097df4c4a3bc7945caeae52ab84"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayParsing.swift",
@@ -98,7 +101,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
-      "sha256": "71e956d245f5b44fcb8012626e1d112c1c1f48a17c3265b72da585b66bdd3a3f"
+      "sha256": "ca30bfa645daeedfc49c05ee735776426b6764c2048b4196f83d212420c292de"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeModel.swift",
+      "sha256": "23facad7662e9b088dca053d6577bbd9eac35bd9dddbf395f46a358fb36b310e"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
@@ -126,7 +133,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
-      "sha256": "39a63561d99f0608b84a758bfab8c3d85b24f2c496c5c413a781136b57ca6080"
+      "sha256": "d1bed24835741587c79d01003c8e2a3798196843548aed52f4666ae1909588ed"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
@@ -139,6 +146,14 @@
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261101CancellationTests.swift",
       "sha256": "f559113d5105625bd6b71cc6573fe9a3cb3298dde503390ce4ebd1d17f1c4fd1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261108GatewayTests.swift",
+      "sha256": "d28265124372883122bcb00749559c251000d0768d267afd9484fd2cef6e4c95"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261108RealtimeIntegrationTests.swift",
+      "sha256": "288b8109e7f80e9d78a5523400519b2eda4f6e4008c2280134abc5eac035976a"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/WeeklyGatewaySpeech20261025Tests.swift",

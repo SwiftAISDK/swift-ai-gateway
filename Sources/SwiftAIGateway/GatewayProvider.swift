@@ -88,6 +88,9 @@ public struct GatewaySpendReportResponse: Equatable, Sendable {
 }
 
 public struct GatewayGenerationInfo: Equatable, Sendable {
+    public var marketCost: Double? = nil
+    public var surchargeCost: Double? = nil
+    public var gatewayCost: Double? = nil
     public var id: String
     public var totalCost: Double
     public var upstreamInferenceCost: Double
@@ -244,7 +247,7 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         webSocketTransport: any AIDuplexWebSocketTransport
     ) throws {
         var settings = settings
-        let credentialResolver = settings.apiKeyProvider.map { resolve in
+        var credentialResolver = settings.apiKeyProvider.map { resolve in
             AIAsyncCredential {
                 let key = try await resolve()
                 guard !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -257,7 +260,15 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         if let teamIDOrSlug {
             settings.headers["x-vercel-ai-gateway-team"] = teamIDOrSlug
         }
-        let auth = try gatewayAuthToken(settings: settings)
+        var auth = try gatewayAuthToken(settings: settings)
+        if auth.method == "oidc", credentialResolver == nil {
+            let credential = AIAsyncCredential {
+                guard let token = environmentValue(["VERCEL_OIDC_TOKEN"]), !token.isEmpty else { throw AIError.missingAPIKey(provider: "gateway", environmentVariables: ["VERCEL_OIDC_TOKEN"]) }
+                return token
+            }
+            credentialResolver = credential
+            auth.token = credential.placeholder
+        }
         let normalizedHeaders = normalizeHeaders(settings.headers)
         if normalizedHeaders["authorization"] == nil {
             settings.headers["Authorization"] = "Bearer \(auth.token)"
@@ -268,7 +279,7 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         if normalizedHeaders["ai-gateway-auth-method"] == nil {
             settings.headers["ai-gateway-auth-method"] = auth.method
         }
-        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.132")
+        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.138")
         let baseURL = withoutTrailingSlash(settings.baseURL ?? "https://ai-gateway.vercel.sh/v4/ai")
         let queryParams = settings.queryParams
         config = GatewayModelConfiguration(http: .init(providerID: providerID, headers: headers, transport: settings.transport, credentialResolver: credentialResolver,
@@ -279,6 +290,11 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
 
     public func languageModel(_ modelID: String) throws -> any LanguageModel {
         GatewayLanguageModel(modelID: modelID, config: config)
+    }
+
+    /// Gateway's normalized realtime protocol over native WebSockets.
+    public func realtimeModel(_ modelID: String) -> GatewayRealtimeModel {
+        GatewayRealtimeModel(modelID: modelID, config: config)
     }
 
     /// Provider-owned Batch V4 service. Gateway batches accept text requests
@@ -443,6 +459,7 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         }
         let data = try response.jsonValue()["data"] ?? .object([:])
         return GatewayGenerationInfo(
+            marketCost: data["market_cost"]?.doubleValue, surchargeCost: data["surcharge_cost"]?.doubleValue, gatewayCost: data["gateway_cost"]?.doubleValue,
             id: data["id"]?.stringValue ?? "",
             totalCost: data["total_cost"]?.doubleValue ?? 0,
             upstreamInferenceCost: data["upstream_inference_cost"]?.doubleValue ?? 0,
@@ -471,7 +488,7 @@ private struct GatewayAuthToken {
 }
 
 private func gatewayAuthToken(settings: GatewayProviderSettings) throws -> GatewayAuthToken {
-    if let apiKey = settings.apiKey ?? environmentValue(["AI_GATEWAY_API_KEY"]) {
+    if let apiKey = settings.apiKey ?? environmentValue(["AI_GATEWAY_API_KEY"]), !apiKey.isEmpty {
         return GatewayAuthToken(token: apiKey, method: "api-key")
     }
     if let oidcToken = environmentValue(["VERCEL_OIDC_TOKEN"]) {
@@ -500,7 +517,7 @@ private func gatewaySpendReportRow(_ raw: JSONValue) -> GatewaySpendReportRow {
     )
 }
 
-private func gatewayOriginURL(baseURL: String, path: String, queryItems: [URLQueryItem] = []) throws -> URL {
+func gatewayOriginURL(baseURL: String, path: String, queryItems: [URLQueryItem] = []) throws -> URL {
     guard let base = URL(string: baseURL), let scheme = base.scheme, let host = base.host else {
         throw AIError.invalidURL(baseURL)
     }

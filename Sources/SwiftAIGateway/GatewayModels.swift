@@ -142,6 +142,20 @@ public struct GatewayBrowserbaseSearchConfig: Equatable, Sendable {
 
 public enum GatewayTools {
 
+    public static func deepseekSearch(query: String? = nil, count: Int? = nil, needContent: Bool? = nil, oriQuestion: String? = nil, localization: String? = nil) -> JSONValue {
+        var args: [String: JSONValue] = [:]
+        args["query"] = query.map(JSONValue.string)
+        args["count"] = count.map { .number(Double($0)) }
+        args["needContent"] = needContent.map(JSONValue.bool)
+        args["oriQuestion"] = oriQuestion.map(JSONValue.string)
+        args["localization"] = localization.map(JSONValue.string)
+        return providerTool(id: "gateway.deepseek_search", name: "deepseek_search", args: args)
+    }
+
+    public static func deepseekFetch(url: String? = nil) -> JSONValue {
+        providerTool(id: "gateway.deepseek_fetch", name: "deepseek_fetch", args: url.map { ["url": .string($0)] } ?? [:])
+    }
+
     public static func perplexitySearch(
         maxResults: Int? = nil,
         maxTokensPerPage: Int? = nil,
@@ -298,23 +312,33 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
 
     public func generate(_ request: LanguageModelRequest) async throws -> TextGenerationResult {
         let body = gatewayLanguageBody(for: request)
-        let response = try await config.sendJSONResponse(path: "/language-model", modelID: modelID, body: body, headers: request.headers.mergingHeaders(modelHeaders(streaming: false)))
+        let response = try await config.sendJSONResponse(path: "/language-model", modelID: modelID, body: body, headers: request.headers.mergingHeaders(modelHeaders(streaming: false)), abortSignal: request.abortSignal)
         let raw = response.json
         let text = parseGatewayText(from: raw)
         let toolCalls = gatewayToolCalls(from: raw["content"])
+        let callsByID = Dictionary(toolCalls.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let content = gatewayContentParts(raw["content"]).enumerated().map { index, part -> AIResultContentPart in
+            if let call = gatewayToolCall(from: part, fallbackIndex: index) { return .toolCall(call) }
+            return gatewayBatchResultContentPart(part, toolCallsByID: callsByID)
+        }
+        let toolResults = resultToolResults(from: content)
         let sources = gatewaySources(from: raw["content"])
-        guard text != nil || !toolCalls.isEmpty else {
+        guard text != nil || !toolCalls.isEmpty || !toolResults.isEmpty else {
             throw AIError.invalidResponse(provider: providerID, message: "No text content found in Gateway language response.")
         }
         return TextGenerationResult(
             text: text ?? "",
             structuredOutputText: raw["structuredOutputText"]?.stringValue,
+            content: content,
             finishReason: gatewayFinishReason(raw["finishReason"]?.stringValue ?? raw["finish_reason"]?.stringValue, hasToolCalls: !toolCalls.isEmpty),
             usage: tokenUsage(from: raw),
             toolCalls: toolCalls,
+            toolResults: toolResults,
             sources: sources,
+            providerMetadata: gatewayProviderMetadata(raw["providerMetadata"]),
             rawValue: raw,
             warnings: gatewayLanguageWarnings(from: raw["warnings"]),
+            requestMetadata: .init(body: body, headers: request.headers, url: try config.http.url(modelID, "/language-model").absoluteString),
             responseMetadata: aiResponseMetadata(from: raw, response: response.response, modelID: modelID)
         )
     }
@@ -393,6 +417,8 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                         }
                         if type == "source", let source = gatewaySource(from: raw, fallbackIndex: 0) {
                             continuation.yield(.source(source))
+                        } else if type == "tool-result", let result = gatewayBatchToolResult(from: raw) {
+                            continuation.yield(.toolResult(result))
                         } else if type == "tool-input-start" {
                             let id = raw["id"]?.stringValue ?? raw["toolCallId"]?.stringValue ?? "tool-call-\(toolBuffers.count)"
                             let name = raw["toolName"]?.stringValue ?? raw["tool_name"]?.stringValue ?? raw["name"]?.stringValue ?? ""
