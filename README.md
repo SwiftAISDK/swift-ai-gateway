@@ -1,5 +1,5 @@
 <!-- Generated distribution; edit the canonical repository. -->
-# swift-ai-gateway 1.2.0
+# swift-ai-gateway 1.3.0
 
 Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions are in PROVENANCE.json and Porting/.
 
@@ -8,7 +8,7 @@ Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions
 Add this package to your SwiftPM dependencies:
 
 ```swift
-.package(url: "https://github.com/SwiftAISDK/swift-ai-gateway.git", from: "1.2.0")
+.package(url: "https://github.com/SwiftAISDK/swift-ai-gateway.git", from: "1.3.0")
 ```
 
 Products: `SwiftAIGateway`.
@@ -30,7 +30,7 @@ let model = try provider.languageModel("openai/gpt-5")
 The package owns Gateway authentication, model and management routes, batch,
 streaming audio and decision/evaluation adapters. Provider-neutral contracts and
 socket lifecycle support come from `swift-ai-core`. The reviewed upstream
-baseline is `@ai-sdk/gateway` 4.0.138.
+baseline is `@ai-sdk/gateway` 4.0.145.
 
 `provider.realtimeModel("openai/gpt-realtime-2")` speaks Gateway's normalized
 protocol. It supports short-lived client-secret WebSockets with team subprotocols
@@ -67,3 +67,9 @@ Run `swift test --package-path Packages/swift-ai-gateway` in the canonical check
 Distribution manifests and repositories are generated from the package catalog.
 
 See [provider usage and capabilities](https://github.com/SwiftAISDK/SwiftAISDK/blob/main/docs-site/scripts/provider-guides/gateway.md) for authentication, options and supported surfaces.
+
+## Current upstream review
+
+The reviewed baseline is `@ai-sdk/gateway` 4.0.145. `GatewayProviderOptions(headquarters: ["US", "DE"])` forwards country routing restrictions; prefix each code with `!` for exclusions. Other Gateway options remain available in `additionalOptions` and open JSON provider options.
+
+`GatewayTakoSearchConfig` adds developer-only `variableCost`, `maxVariableCostUSD` and `extraBody`. Set the cost cap to `.null` to remove it, or omit it to retain the server default. These settings remain camelCase tool factory arguments; model-input fields are separate. Tako results retain variable-cost usage, premium/redacted row metadata, total matches, relevance scores and placeholder cards without lossy decoding. Browserbase fetch calls preserve `allow_redirects` in tool input. The upstream switch to Zod Mini and JavaScript bundle/type changes do not alter Swift runtime schemas.

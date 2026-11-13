@@ -279,7 +279,7 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         if normalizedHeaders["ai-gateway-auth-method"] == nil {
             settings.headers["ai-gateway-auth-method"] = auth.method
         }
-        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.138")
+        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.145")
         let baseURL = withoutTrailingSlash(settings.baseURL ?? "https://ai-gateway.vercel.sh/v4/ai")
         let queryParams = settings.queryParams
         config = GatewayModelConfiguration(http: .init(providerID: providerID, headers: headers, transport: settings.transport, credentialResolver: credentialResolver,

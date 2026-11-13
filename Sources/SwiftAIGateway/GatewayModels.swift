@@ -82,6 +82,11 @@ public struct GatewayTakoSearchConfig: Equatable, Sendable {
     public var imageDarkMode: Bool?
     public var forceRefresh: Bool?
     public var includeRelated: Int?
+    /// Allows per-unit-priced data; false requests placeholder cards instead.
+    public var variableCost: Bool?
+    /// JSON null removes the default cap; nil omits this option.
+    public var maxVariableCostUSD: JSONValue?
+    public var extraBody: [String: JSONValue]?
 
     public init(
         effort: String? = nil,
@@ -107,6 +112,34 @@ public struct GatewayTakoSearchConfig: Equatable, Sendable {
         self.imageDarkMode = imageDarkMode
         self.forceRefresh = forceRefresh
         self.includeRelated = includeRelated
+        self.variableCost = nil
+        self.maxVariableCostUSD = nil
+        self.extraBody = nil
+    }
+}
+
+public extension GatewayTakoSearchConfig {
+    /// Developer-only variable-cost controls; these are not model input fields.
+    init(variableCost: Bool?, maxVariableCostUSD: JSONValue? = nil, extraBody: [String: JSONValue]? = nil) {
+        self.init()
+        self.variableCost = variableCost
+        self.maxVariableCostUSD = maxVariableCostUSD
+        self.extraBody = extraBody
+    }
+}
+
+/// Gateway routing restrictions, with open-ended options preserved for future additions.
+public struct GatewayProviderOptions: Equatable, Sendable {
+    /// ISO country codes; prefix every code with ! to exclude those headquarters.
+    public var headquarters: [String]?
+    public var additionalOptions: [String: JSONValue]
+    public init(headquarters: [String]? = nil, additionalOptions: [String: JSONValue] = [:]) {
+        self.headquarters = headquarters; self.additionalOptions = additionalOptions
+    }
+    public var providerOptions: [String: JSONValue] {
+        var options = additionalOptions
+        options["headquarters"] = headquarters.map(JSONValue.array)
+        return ["gateway": .object(options)]
     }
 }
 
@@ -265,6 +298,9 @@ public enum GatewayTools {
         if let forceRefresh = config.forceRefresh { outputSettings["forceRefresh"] = .bool(forceRefresh) }
         if !outputSettings.isEmpty { args["outputSettings"] = .object(outputSettings) }
         if let includeRelated = config.includeRelated { args["includeRelated"] = .number(Double(includeRelated)) }
+        args["variableCost"] = config.variableCost.map(JSONValue.bool)
+        args["maxVariableCostUsd"] = config.maxVariableCostUSD
+        args["extraBody"] = config.extraBody.map(JSONValue.object)
 
         return providerTool(id: "gateway.tako_search", name: "tako_search", args: args)
     }

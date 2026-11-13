@@ -3,13 +3,13 @@
   "packages": [
     {
       "name": "@ai-sdk/gateway",
-      "reviewedVersion": "4.0.138",
+      "reviewedVersion": "4.0.145",
       "ledgerKind": "provider",
-      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/WeeklyUpstreamAudit20261114.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-7a/LGqioUyU2CmjRjMwnX4WR5V4vP3+YdPZEAbh7CH9OXf1GcPSsiySsHxNbqiDlDnL+KdqPvWeipIR7u/VFHA==",
-      "sourceRef": "npm:@ai-sdk/gateway@4.0.138",
-      "testRef": "0f3a85f92d1ce06ccde01d662407ef83e097a712",
+      "archiveIntegrity": "sha512-vquqCrEut1jlWshy2lWaOrBvyrpVjhLWoR/EVpb+m7JKtHtmpy0vpl9rtpB6xNFiumjT9e2s70MZmRth/hH9tw==",
+      "sourceRef": "npm:@ai-sdk/gateway@4.0.145",
+      "testRef": "8bc7652cdb13fc84722666eb93f45acd0d131eee",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
         "DecisionModelV4",
@@ -23,7 +23,7 @@
         "TranscriptionModelV4",
         "VideoModelV4"
       ],
-      "contractReview": "2026-11-08: published declarations/source and exact matching-release changed tests reviewed; native implementations, per-file dispositions and broader retained gaps are recorded in Docs/WeeklyUpstreamAudit20261108.json. Reviewed delta is not full-package or live-service parity."
+      "contractReview": "2026-11-14: verified published source/declarations and exact matching-release changed tests reviewed separately; native ports, per-file dispositions and retained gaps are recorded in Docs/WeeklyUpstreamAudit20261114.json. Delta review is not full-package or live-service parity."
     }
   ]
 }
