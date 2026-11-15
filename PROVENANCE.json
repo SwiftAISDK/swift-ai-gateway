@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-gateway",
-  "version": "1.3.0",
-  "releaseID": "weekly-upstream-20261114",
+  "version": "1.3.1",
+  "releaseID": "weekly-upstream-20261115",
   "source": {
-    "commit": "07fbf86b82d83d9724bd03622e9e87e74395286f",
-    "baseCommit": "07fbf86b82d83d9724bd03622e9e87e74395286f",
+    "commit": "1e543b35e0259a5bda888665dacf2d4a7f1bb0ed",
+    "baseCommit": "1e543b35e0259a5bda888665dacf2d4a7f1bb0ed",
     "workingTree": false,
-    "inputsSHA256": "63e472c0fe891cb7636d225e1c6467e4761dc3721be68081f2afa9f0b656bb29"
+    "inputsSHA256": "5508ffc6347bffaed13fb29409eb856df9a7796d3ebdcb6f623d1e8871b52999"
   },
   "dependencies": [
     {
@@ -17,22 +17,22 @@
   ],
   "changes": [
     {
-      "id": "weekly-upstream-20261114",
-      "notes": "Add typed headquarters routing restrictions and current Tako Search cost controls/results while preserving open provider options and Browserbase redirect input. Incremental binary-image decoding remains outside this release. Reviewed npm delta: @ai-sdk/gateway 4.0.138 to 4.0.145. Validation: `node Scripts/test-packages.mjs` passed all 52 owning suites and 1731 facade tests; tooling 27/27, generation/isolation checks, standalone exports and 106 minimum/latest consumers, documentation check and 101-page build passed. Publication requires green exact-source Swift 6.3.3 CI. Paid/live verification and full-package parity are not claimed.",
-      "compatibility": "Additive native APIs or capabilities under the project minor-release convention. npm baselines and Swift SemVer are independent; this reviewed delta does not establish full-package or live-service parity."
+      "id": "weekly-upstream-20261115",
+      "notes": "Align the versioned request identity with the reviewed published package while retaining native open String model IDs and existing request, response, option, error, stream and telemetry behavior. Derived TypeScript model-ID/catalog reorganizations preserve the existing native runtime policies. Reviewed npm delta: @ai-sdk/gateway 4.0.145 to 4.0.146. Validation passed: node Scripts/test-packages.mjs (55 owning packages, 2451 owning tests and 1736 compatibility tests), generation checks, 27 tooling tests, isolation/version checks, deterministic exports and minimum-dependency consumers. Documentation check/build passed (104 pages). Publication is gated by exact-source Swift 6.3.3 CI; subsequent public refs and clients are recorded in Docs/ReleaseVerification20261115.json. Paid/live-service checks were not run; this delta does not claim full-package parity.",
+      "compatibility": "Compatible versioned request identity correction; existing public selectors and dependency minimums remain. npm baselines and Swift SemVer are independent."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-gateway",
   "upstream": [
     {
       "name": "@ai-sdk/gateway",
-      "reviewedVersion": "4.0.145",
+      "reviewedVersion": "4.0.146",
       "ledgerKind": "provider",
-      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/WeeklyUpstreamAudit20261114.json",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/WeeklyUpstreamAudit20261114.json; 2026-11-15 delta: Docs/WeeklyUpstreamAudit20261115.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-vquqCrEut1jlWshy2lWaOrBvyrpVjhLWoR/EVpb+m7JKtHtmpy0vpl9rtpB6xNFiumjT9e2s70MZmRth/hH9tw==",
-      "sourceRef": "npm:@ai-sdk/gateway@4.0.145",
-      "testRef": "8bc7652cdb13fc84722666eb93f45acd0d131eee",
+      "archiveIntegrity": "sha512-rJ5NQSyjnpo6HSBEYc9Ff6k1EROUuB7KeAfHYVbVDsk68ynY0Eb8JeWflZKXlT6NhYgqyCiBDxE5blXWACXMKQ==",
+      "sourceRef": "npm:@ai-sdk/gateway@4.0.146",
+      "testRef": "0e8e0543aeda7d4dd4ce6eade0d5b7d5a43644c1",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
         "DecisionModelV4",
@@ -46,7 +46,7 @@
         "TranscriptionModelV4",
         "VideoModelV4"
       ],
-      "contractReview": "2026-11-14: verified published source/declarations and exact matching-release changed tests reviewed separately; native ports, per-file dispositions and retained gaps are recorded in Docs/WeeklyUpstreamAudit20261114.json. Delta review is not full-package or live-service parity."
+      "contractReview": "2026-11-15: published source/declarations and exact matching-release tests reviewed separately. Native delta scenarios, per-file dispositions, unchanged-catalog evidence and explicit remaining gaps are recorded in Docs/WeeklyUpstreamAudit20261115.json. Required checks remain a separate gate; no full-package/live-service parity claim."
     }
   ],
   "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
@@ -65,7 +65,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Porting/map.json",
-      "sha256": "916158a8138dc1a159860a55cbc0838e63afe62cc9f74754d8d2cb2b2b3710e3"
+      "sha256": "5f7e54ddcdd5c99aaf4269115320a236e4c6482c5f93174075c39e6089ce0f34"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/README.md",
@@ -101,7 +101,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
-      "sha256": "5235b690635c4a1fed1b2c5c8bb8e31176ed2d23858e5513c8841bd2ea13b44b"
+      "sha256": "c1edfa3a8cb1d98e54c9c1ffdfddfac4bd1ebd10f95c6e14f21215da2eb11e57"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeModel.swift",
@@ -133,7 +133,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
-      "sha256": "da6fadc2173825bbc42bfe25435da5c2619de9ec908603aeb550816edb176eca"
+      "sha256": "6cf66badecf1407a89179815dd3a16bd0c74cf11bff9d12a22043acb5bdd482e"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
