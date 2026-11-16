@@ -52,6 +52,8 @@ func gatewayEmbeddingUsage(from raw: JSONValue) -> TokenUsage? {
 public final class GatewayImageModel: ImageModel, @unchecked Sendable {
     public let providerID: String
     public let modelID: String
+    /// Upstream `Number.MAX_SAFE_INTEGER`: Gateway receives the full count.
+    public var maxImagesPerCall: Int { Int.max }
     private let config: GatewayModelConfiguration
 
     init(modelID: String, config: GatewayModelConfiguration) {
@@ -61,17 +63,26 @@ public final class GatewayImageModel: ImageModel, @unchecked Sendable {
     }
 
     public func generateImage(_ request: ImageGenerationRequest) async throws -> ImageGenerationResult {
-        var body: [String: JSONValue] = ["prompt": .string(request.prompt)]
-        if let count = request.count { body["n"] = .number(Double(count)) }
-        if let size = request.size { body["size"] = .string(size) }
-        if let aspectRatio = request.aspectRatio { body["aspectRatio"] = .string(aspectRatio) }
+        // Upstream `generateImage` always calls the model with `n` (default 1)
+        // and `providerOptions` (default `{}`), and the Gateway adapter forwards
+        // both. Empty strings are omitted like upstream's truthiness checks.
+        var body: [String: JSONValue] = [
+            "prompt": .string(request.prompt),
+            "n": .number(Double(request.count ?? 1))
+        ]
+        if let size = request.size, !size.isEmpty { body["size"] = .string(size) }
+        if let aspectRatio = request.aspectRatio, !aspectRatio.isEmpty { body["aspectRatio"] = .string(aspectRatio) }
         if let seed = request.seed { body["seed"] = .number(Double(seed)) }
-        var providerOptions = request.providerOptions
-        if var gateway = providerOptions["gateway"]?.objectValue {
+        var providerOptions: [String: JSONValue]? = request.providerOptions
+        if var gateway = request.providerOptions["gateway"]?.objectValue,
+           gateway["experimental_streamingImageDecoding"] != nil {
+            // Client-only option: strip it, drop an emptied gateway object and
+            // omit providerOptions entirely when nothing else remains.
             gateway.removeValue(forKey: "experimental_streamingImageDecoding")
-            providerOptions["gateway"] = gateway.isEmpty ? nil : .object(gateway)
+            providerOptions?["gateway"] = gateway.isEmpty ? nil : .object(gateway)
+            if providerOptions?.isEmpty == true { providerOptions = nil }
         }
-        if !providerOptions.isEmpty { body["providerOptions"] = .object(providerOptions) }
+        if let providerOptions { body["providerOptions"] = .object(providerOptions) }
         body.merge(request.extraBody) { _, new in new }
         if !request.files.isEmpty {
             body["files"] = .array(request.files.map(gatewayImageFile))
@@ -82,7 +93,7 @@ public final class GatewayImageModel: ImageModel, @unchecked Sendable {
         let response = try await config.sendJSONResponse(path: "/image-model", modelID: modelID, body: .object(body), headers: request.headers.mergingHeaders([
             "ai-image-model-specification-version": "4",
             "ai-model-id": modelID
-        ]))
+        ]), abortSignal: request.abortSignal)
         let raw = response.json
         let images = raw["images"]?.arrayValue ?? raw["data"]?.arrayValue ?? []
         return ImageGenerationResult(
@@ -90,12 +101,24 @@ public final class GatewayImageModel: ImageModel, @unchecked Sendable {
             base64Images: images.compactMap { $0["data"]?.stringValue ?? $0.stringValue ?? $0["b64_json"]?.stringValue },
             rawValue: raw,
             warnings: gatewayWarnings(from: raw["warnings"]) + (request.providerOptions["gateway"]?["experimental_streamingImageDecoding"] == true ? [AIWarning(type: "unsupported", feature: "gateway.experimental_streamingImageDecoding", message: "Native image results retain buffered base64 strings; incremental binary image decoding is not supported.")] : []),
+            usage: gatewayImageUsage(raw["usage"]),
             providerMetadata: gatewayProviderMetadata(raw["providerMetadata"] ?? raw["provider_metadata"]),
             requestMetadata: imageGenerationRequestMetadata(request, body: .object(body)),
             responseMetadata: aiResponseMetadata(from: raw, response: response.response, modelID: modelID),
             isRetryable: raw["isRetryable"]?.boolValue
         )
     }
+}
+
+/// Upstream returns usage only when the response carries a usage object,
+/// mapping each nullish count to undefined.
+func gatewayImageUsage(_ value: JSONValue?) -> TokenUsage? {
+    guard let usage = value?.objectValue else { return nil }
+    return TokenUsage(
+        inputTokens: usage["inputTokens"]?.intValue,
+        outputTokens: usage["outputTokens"]?.intValue,
+        totalTokens: usage["totalTokens"]?.intValue
+    )
 }
 
 func gatewayImageFile(_ file: ImageInputFile) -> JSONValue {
@@ -134,7 +157,7 @@ public final class GatewayVideoModel: AsyncVideoModel, @unchecked Sendable {
         ]), abortSignal: request.abortSignal)
         let response = try await config.transport.send(httpRequest)
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: providerID, response: response, authMethod: config.authMethod)
         }
         let raw: JSONValue
         if let event = parseServerSentEvents(response.body).first(where: { $0.data != "[DONE]" }) {
@@ -260,15 +283,20 @@ public final class GatewayVideoModel: AsyncVideoModel, @unchecked Sendable {
 }
 
 private func gatewayVideoBody(_ request: VideoGenerationRequest) -> [String: JSONValue] {
-    var body: [String: JSONValue] = ["prompt": .string(request.prompt)]
-    if let aspectRatio = request.aspectRatio { body["aspectRatio"] = .string(aspectRatio) }
-    if let durationSeconds = request.durationSeconds { body["duration"] = .number(durationSeconds) }
-    if let count = request.count { body["n"] = .number(Double(count)) }
-    if let resolution = request.resolution { body["resolution"] = .string(resolution) }
-    if let fps = request.fps { body["fps"] = .number(fps) }
+    // Upstream `generateVideo` always passes `n` (default 1) and
+    // `providerOptions` (default `{}`); the Gateway adapter omits falsy
+    // aspectRatio/resolution/duration/fps values and only a nil seed.
+    var body: [String: JSONValue] = [
+        "prompt": .string(request.prompt),
+        "n": .number(Double(request.count ?? 1))
+    ]
+    if let aspectRatio = request.aspectRatio, !aspectRatio.isEmpty { body["aspectRatio"] = .string(aspectRatio) }
+    if let resolution = request.resolution, !resolution.isEmpty { body["resolution"] = .string(resolution) }
+    if let durationSeconds = request.durationSeconds, durationSeconds != 0 { body["duration"] = .number(durationSeconds) }
+    if let fps = request.fps, fps != 0 { body["fps"] = .number(fps) }
     if let seed = request.seed { body["seed"] = .number(Double(seed)) }
     if let generateAudio = request.generateAudio { body["generateAudio"] = .bool(generateAudio) }
-    if !request.providerOptions.isEmpty { body["providerOptions"] = .object(request.providerOptions) }
+    body["providerOptions"] = .object(request.providerOptions)
     if let image = request.image { body["image"] = gatewayVideoFile(image) }
     if !request.frameImages.isEmpty {
         body["frameImages"] = .array(request.frameImages.map(gatewayVideoFrameImage))
@@ -348,12 +376,13 @@ public final class GatewaySpeechModel: StreamingSpeechModel, @unchecked Sendable
     }
 
     public func speak(_ request: SpeechRequest) async throws -> SpeechResult {
+        // Upstream omits falsy (empty) strings and only a nil speed.
         var body: [String: JSONValue] = ["text": .string(request.text)]
-        if let voice = request.voice { body["voice"] = .string(voice) }
-        if let format = request.format { body["outputFormat"] = .string(format) }
-        if let instructions = request.instructions { body["instructions"] = .string(instructions) }
+        if let voice = request.voice, !voice.isEmpty { body["voice"] = .string(voice) }
+        if let format = request.format, !format.isEmpty { body["outputFormat"] = .string(format) }
+        if let instructions = request.instructions, !instructions.isEmpty { body["instructions"] = .string(instructions) }
         if let speed = request.speed { body["speed"] = .number(speed) }
-        if let language = request.language { body["language"] = .string(language) }
+        if let language = request.language, !language.isEmpty { body["language"] = .string(language) }
         if !request.providerOptions.isEmpty { body["providerOptions"] = .object(request.providerOptions) }
         body.merge(request.extraBody) { _, new in new }
         let response = try await config.sendJSONResponse(path: "/speech-model", modelID: modelID, body: .object(body), headers: request.headers.mergingHeaders([
@@ -423,7 +452,9 @@ public final class GatewayTranscriptionModel:
             rawValue: raw,
             segments: segments,
             language: raw["language"]?.stringValue,
-            durationInSeconds: raw["durationInSeconds"]?.doubleValue ?? raw["duration"]?.doubleValue ?? transcriptionDuration(from: segments),
+            // Upstream reports only the response's durationInSeconds; it never
+            // derives a duration from segment timings.
+            durationInSeconds: raw["durationInSeconds"]?.doubleValue,
             warnings: warnings,
             providerMetadata: gatewayProviderMetadata(raw["providerMetadata"] ?? raw["provider_metadata"]),
             requestMetadata: AIRequestMetadata(body: .object(body), headers: request.headers),

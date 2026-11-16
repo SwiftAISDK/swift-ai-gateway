@@ -53,8 +53,15 @@ import SwiftAITransport
     @Test func blankCredentialCallbackFailsBeforeSending() async throws {
         let transport = RecordingTransport(response: jsonResponse("{}"))
         let provider = try GatewayProvider(configuration: .init(apiKeyProvider: { " " }, transport: transport))
-        await #expect(throws: AIError.invalidArgument(argument: "apiKeyProvider", message: "AI Gateway API key must be a non-empty string.")) {
+        // Upstream `getHeaders` wraps credential failures in the contextual
+        // `GatewayAuthenticationError` ("No authentication provided").
+        do {
             _ = try await provider.languageModel("test/model").generate(.init(messages: [.user("Hello")]))
+            Issue.record("Expected authentication error")
+        } catch let AIError.gateway(error) {
+            #expect(error.type == .authenticationError)
+            #expect(error.statusCode == 401)
+            #expect(error.message.contains("No authentication provided"))
         }
         #expect(await transport.requests().isEmpty)
     }

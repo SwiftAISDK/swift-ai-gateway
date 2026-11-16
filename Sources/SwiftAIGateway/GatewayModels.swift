@@ -304,6 +304,35 @@ public enum GatewayTools {
 
         return providerTool(id: "gateway.tako_search", name: "tako_search", args: args)
     }
+    /// Upstream `gateway.tools.exaSearch`: Exa web search executed by AI
+    /// Gateway. The configuration is forwarded unchanged as tool args.
+    /// `contents` follows Exa's `ExaSearchContentsConfig` (`text`,
+    /// `highlights`, `maxAgeHours`, `livecrawlTimeout`, `subpages`,
+    /// `subpageTarget`, `extras`).
+    public static func exaSearch(
+        type: String? = nil,
+        numResults: Int? = nil,
+        category: String? = nil,
+        userLocation: String? = nil,
+        includeDomains: [String]? = nil,
+        excludeDomains: [String]? = nil,
+        startPublishedDate: String? = nil,
+        endPublishedDate: String? = nil,
+        contents: JSONValue? = nil
+    ) -> JSONValue {
+        var args: [String: JSONValue] = [:]
+        if let type { args["type"] = .string(type) }
+        if let numResults { args["numResults"] = .number(Double(numResults)) }
+        if let category { args["category"] = .string(category) }
+        if let userLocation { args["userLocation"] = .string(userLocation) }
+        if let includeDomains { args["includeDomains"] = .array(includeDomains) }
+        if let excludeDomains { args["excludeDomains"] = .array(excludeDomains) }
+        if let startPublishedDate { args["startPublishedDate"] = .string(startPublishedDate) }
+        if let endPublishedDate { args["endPublishedDate"] = .string(endPublishedDate) }
+        if let contents { args["contents"] = contents }
+        return providerTool(id: "gateway.exa_search", name: "exa_search", args: args)
+    }
+
     public static func browserbaseSearch(
         _ config: GatewayBrowserbaseSearchConfig = GatewayBrowserbaseSearchConfig()
     ) -> JSONValue {
@@ -348,7 +377,12 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
 
     public func generate(_ request: LanguageModelRequest) async throws -> TextGenerationResult {
         let body = gatewayLanguageBody(for: request)
-        let response = try await config.sendJSONResponse(path: "/language-model", modelID: modelID, body: body, headers: request.headers.mergingHeaders(modelHeaders(streaming: false)), abortSignal: request.abortSignal)
+        let response: (json: JSONValue, response: AIHTTPResponse)
+        do {
+            response = try await config.sendJSONResponse(path: "/language-model", modelID: modelID, body: body, headers: request.headers.mergingHeaders(modelHeaders(streaming: false)), abortSignal: request.abortSignal)
+        } catch {
+            throw gatewayTransportError(error)
+        }
         let raw = response.json
         let text = parseGatewayText(from: raw)
         let toolCalls = gatewayToolCalls(from: raw["content"])
@@ -359,15 +393,17 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
         }
         let toolResults = resultToolResults(from: content)
         let sources = gatewaySources(from: raw["content"])
-        guard text != nil || !toolCalls.isEmpty || !toolResults.isEmpty else {
-            throw AIError.invalidResponse(provider: providerID, message: "No text content found in Gateway language response.")
-        }
+        let reasoning = content.compactMap { part -> String? in
+            guard case let .reasoning(text, _) = part else { return nil }
+            return text
+        }.joined()
         return TextGenerationResult(
             text: text ?? "",
             structuredOutputText: raw["structuredOutputText"]?.stringValue,
             content: content,
-            finishReason: gatewayFinishReason(raw["finishReason"]?.stringValue ?? raw["finish_reason"]?.stringValue, hasToolCalls: !toolCalls.isEmpty),
-            usage: tokenUsage(from: raw),
+            reasoning: reasoning,
+            finishReason: gatewayV4FinishReason(raw["finishReason"] ?? raw["finish_reason"], hasToolCalls: !toolCalls.isEmpty),
+            usage: gatewayV4Usage(from: raw),
             toolCalls: toolCalls,
             toolResults: toolResults,
             sources: sources,
@@ -375,7 +411,7 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
             rawValue: raw,
             warnings: gatewayLanguageWarnings(from: raw["warnings"]),
             requestMetadata: .init(body: body, headers: request.headers, url: try config.http.url(modelID, "/language-model").absoluteString),
-            responseMetadata: aiResponseMetadata(from: raw, response: response.response, modelID: modelID)
+            responseMetadata: gatewayV4ResponseMetadata(from: raw, response: response.response, modelID: modelID)
         )
     }
 
@@ -386,17 +422,26 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                     let httpRequest = try config.request(
                         path: "/language-model",
                         modelID: modelID,
-                        body: gatewayLanguageBody(for: request),
+                        body: gatewayLanguageCallOptions(for: request, streaming: true),
                         headers: request.headers.mergingHeaders(modelHeaders(streaming: true)),
                         abortSignal: request.abortSignal
                     )
-                    let response = try await config.streamRequest(httpRequest)
+                    let response: AIHTTPStreamResponse
+                    do {
+                        response = try await config.streamRequest(httpRequest)
+                    } catch {
+                        throw gatewayTransportError(error)
+                    }
                     guard (200..<300).contains(response.statusCode) else {
-                        throw gatewayAPICallError(provider: providerID, response: try await bufferedHTTPResponse(from: response, request: httpRequest))
+                        throw gatewayAPICallError(provider: providerID, response: try await bufferedHTTPResponse(from: response, request: httpRequest), authMethod: config.authMethod)
                     }
                     let responseHead = httpResponseHead(from: response, request: httpRequest)
                     continuation.yield(.responseMetadata(aiResponseMetadata(response: responseHead, modelID: modelID)))
                     var toolBuffers: [String: GatewayStreamingToolCall] = [:]
+                    // Inputs closed by `tool-input-end` that still wait for the
+                    // V4 `tool-call` part; flushed at finish for older streams.
+                    var endedToolInputs: [GatewayStreamingToolCall] = []
+                    var streamedToolInputIDs: Set<String> = []
                     var sawToolCalls = false
                     var activeTextID: String?
                     var activeReasoningID: String?
@@ -404,19 +449,105 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                     var finishUsage: TokenUsage?
                     var finishProviderMetadata: [String: JSONValue] = [:]
                     var emittedStreamStart = false
+                    func flushEndedToolInputs() {
+                        for buffer in endedToolInputs {
+                            continuation.yield(.toolCall(buffer.toolCall))
+                        }
+                        endedToolInputs.removeAll()
+                    }
                     for try await event in serverSentEvents(from: response.body) {
                         if event.data == "[DONE]" { break }
                         let raw = try decodeJSONBody(Data(event.data.utf8))
-                        if request.includeRawChunks {
-                            continuation.yield(.raw(raw))
-                        }
                         let type = raw["type"]?.stringValue
-                        if type == "stream-start", !emittedStreamStart {
-                            emittedStreamStart = true
-                            continuation.yield(.streamStart(warnings: gatewayLanguageWarnings(from: raw["warnings"])))
-                        }
-                        if request.includeRawChunks, type == "raw", let rawValue = raw["rawValue"] {
-                            continuation.yield(.raw(rawValue))
+                        let providerMetadata = gatewayProviderMetadata(raw["providerMetadata"])
+                        switch type {
+                        case "stream-start":
+                            if !emittedStreamStart {
+                                emittedStreamStart = true
+                                continuation.yield(.streamStart(warnings: gatewayLanguageWarnings(from: raw["warnings"])))
+                            }
+                            continue
+                        case "raw":
+                            // Upstream forwards provider raw chunks only when requested.
+                            if request.includeRawChunks, let rawValue = raw["rawValue"] {
+                                continuation.yield(.raw(rawValue))
+                            }
+                            continue
+                        case "response-metadata":
+                            continuation.yield(.responseMetadata(AIResponseMetadata(
+                                id: raw["id"]?.stringValue,
+                                timestamp: gatewayV4Timestamp(raw["timestamp"]),
+                                modelID: raw["modelId"]?.stringValue,
+                                headers: responseHead.headers,
+                                body: raw
+                            )))
+                            continue
+                        case "error":
+                            continuation.yield(.error(
+                                message: gatewayV4StreamErrorMessage(raw["error"]),
+                                rawValue: raw["error"]
+                            ))
+                            continue
+                        case "text-start":
+                            let id = raw["id"]?.stringValue ?? "txt-0"
+                            if let reasoningID = activeReasoningID {
+                                continuation.yield(.reasoningEnd(id: reasoningID))
+                                activeReasoningID = nil
+                            }
+                            if let previous = activeTextID, previous != id {
+                                continuation.yield(.textEnd(id: previous))
+                            }
+                            if activeTextID != id {
+                                activeTextID = id
+                                continuation.yield(.textStart(id: id, providerMetadata: providerMetadata))
+                            }
+                            continue
+                        case "text-end":
+                            let id = raw["id"]?.stringValue ?? activeTextID ?? "txt-0"
+                            if activeTextID == id {
+                                activeTextID = nil
+                                continuation.yield(.textEnd(id: id, providerMetadata: providerMetadata))
+                            }
+                            continue
+                        case "reasoning-start":
+                            let id = raw["id"]?.stringValue ?? "reasoning-0"
+                            if let textID = activeTextID {
+                                continuation.yield(.textEnd(id: textID))
+                                activeTextID = nil
+                            }
+                            if let previous = activeReasoningID, previous != id {
+                                continuation.yield(.reasoningEnd(id: previous))
+                            }
+                            if activeReasoningID != id {
+                                activeReasoningID = id
+                                continuation.yield(.reasoningStart(id: id, providerMetadata: providerMetadata))
+                            }
+                            continue
+                        case "reasoning-end":
+                            let id = raw["id"]?.stringValue ?? activeReasoningID ?? "reasoning-0"
+                            if activeReasoningID == id {
+                                activeReasoningID = nil
+                                continuation.yield(.reasoningEnd(id: id, providerMetadata: providerMetadata))
+                            }
+                            continue
+                        case "file", "reasoning-file":
+                            if let file = gatewayBatchFile(from: raw) {
+                                continuation.yield(type == "file" ? .file(file) : .reasoningFile(file))
+                            }
+                            continue
+                        case "custom":
+                            continuation.yield(.custom(
+                                raw["kind"].map { .object(["kind": $0]) } ?? raw,
+                                providerMetadata: providerMetadata
+                            ))
+                            continue
+                        case "tool-approval-request":
+                            if let approval = gatewayBatchToolApprovalRequest(from: raw, toolCallsByID: [:]) {
+                                continuation.yield(.toolApprovalRequest(approval))
+                            }
+                            continue
+                        default:
+                            break
                         }
                         if let delta = raw["delta"]?.stringValue
                             ?? raw["textDelta"]?.stringValue
@@ -432,9 +563,9 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                                     continuation.yield(.textEnd(id: previousTextID))
                                 }
                                 activeTextID = id
-                                continuation.yield(.textStart(id: id, providerMetadata: gatewayProviderMetadata(raw["providerMetadata"])))
+                                continuation.yield(.textStart(id: id, providerMetadata: providerMetadata))
                             }
-                            continuation.yield(.textDeltaPart(id: id, delta: delta, providerMetadata: gatewayProviderMetadata(raw["providerMetadata"])))
+                            continuation.yield(.textDeltaPart(id: id, delta: delta, providerMetadata: providerMetadata))
                         }
                         if type == "reasoning-delta", let delta = raw["delta"]?.stringValue ?? raw["textDelta"]?.stringValue {
                             if let textID = activeTextID {
@@ -447,9 +578,9 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                                     continuation.yield(.reasoningEnd(id: previousReasoningID))
                                 }
                                 activeReasoningID = id
-                                continuation.yield(.reasoningStart(id: id, providerMetadata: gatewayProviderMetadata(raw["providerMetadata"])))
+                                continuation.yield(.reasoningStart(id: id, providerMetadata: providerMetadata))
                             }
-                            continuation.yield(.reasoningDeltaPart(id: id, delta: delta, providerMetadata: gatewayProviderMetadata(raw["providerMetadata"])))
+                            continuation.yield(.reasoningDeltaPart(id: id, delta: delta, providerMetadata: providerMetadata))
                         }
                         if type == "source", let source = gatewaySource(from: raw, fallbackIndex: 0) {
                             continuation.yield(.source(source))
@@ -465,11 +596,14 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                                 providerExecuted: raw["providerExecuted"]?.boolValue ?? false,
                                 rawValue: raw
                             )
+                            streamedToolInputIDs.insert(id)
                             continuation.yield(.toolInputStart(
                                 id: id,
                                 name: name,
                                 providerExecuted: raw["providerExecuted"]?.boolValue ?? false,
-                                providerMetadata: gatewayProviderMetadata(raw["providerMetadata"])
+                                dynamic: raw["dynamic"]?.boolValue ?? false,
+                                title: raw["title"]?.stringValue,
+                                providerMetadata: providerMetadata
                             ))
                         } else if type == "tool-input-delta" {
                             let id = raw["id"]?.stringValue ?? raw["toolCallId"]?.stringValue
@@ -484,27 +618,33 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                             }
                             continuation.yield(.toolCallDelta(id: id, name: toolBuffers[id ?? ""]?.name, argumentsDelta: delta, index: nil))
                             if let id, !delta.isEmpty {
-                                continuation.yield(.toolInputDelta(id: id, delta: delta, providerMetadata: gatewayProviderMetadata(raw["providerMetadata"])))
+                                continuation.yield(.toolInputDelta(id: id, delta: delta, providerMetadata: providerMetadata))
                             }
                         } else if type == "tool-input-end" {
                             let id = raw["id"]?.stringValue ?? raw["toolCallId"]?.stringValue
                             if let id, let buffer = toolBuffers.removeValue(forKey: id), !buffer.name.isEmpty {
                                 sawToolCalls = true
-                                continuation.yield(.toolInputEnd(id: id, providerMetadata: gatewayProviderMetadata(raw["providerMetadata"])))
-                                continuation.yield(.toolCall(buffer.toolCall))
+                                continuation.yield(.toolInputEnd(id: id, providerMetadata: providerMetadata))
+                                endedToolInputs.append(buffer)
                             }
                         } else if type == "tool-call", let toolCall = gatewayToolCall(from: raw, fallbackIndex: toolBuffers.count) {
                             sawToolCalls = true
-                            continuation.yield(.toolInputStart(id: toolCall.id, name: toolCall.name, providerExecuted: toolCall.providerExecuted, providerMetadata: toolCall.providerMetadata))
-                            continuation.yield(.toolCallDelta(id: toolCall.id, name: toolCall.name, argumentsDelta: toolCall.arguments, index: nil))
-                            if !toolCall.arguments.isEmpty {
-                                continuation.yield(.toolInputDelta(id: toolCall.id, delta: toolCall.arguments, providerMetadata: toolCall.providerMetadata))
+                            endedToolInputs.removeAll { $0.id == toolCall.id }
+                            if !streamedToolInputIDs.contains(toolCall.id) {
+                                // Older streams send only `tool-call`; synthesize
+                                // the input lifecycle Swift consumers expect.
+                                continuation.yield(.toolInputStart(id: toolCall.id, name: toolCall.name, providerExecuted: toolCall.providerExecuted, providerMetadata: toolCall.providerMetadata))
+                                continuation.yield(.toolCallDelta(id: toolCall.id, name: toolCall.name, argumentsDelta: toolCall.arguments, index: nil))
+                                if !toolCall.arguments.isEmpty {
+                                    continuation.yield(.toolInputDelta(id: toolCall.id, delta: toolCall.arguments, providerMetadata: toolCall.providerMetadata))
+                                }
+                                continuation.yield(.toolInputEnd(id: toolCall.id, providerMetadata: toolCall.providerMetadata))
                             }
-                            continuation.yield(.toolInputEnd(id: toolCall.id, providerMetadata: toolCall.providerMetadata))
                             continuation.yield(.toolCall(toolCall))
                         }
                         if type == "finish" || type == "finish-step" {
                             let hasToolCalls = sawToolCalls || !toolBuffers.isEmpty
+                            flushEndedToolInputs()
                             for buffer in toolBuffers.values where !buffer.name.isEmpty {
                                 continuation.yield(.toolInputEnd(id: buffer.id))
                                 continuation.yield(.toolCall(buffer.toolCall))
@@ -519,16 +659,17 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
                                 activeReasoningID = nil
                             }
                             if type == "finish" {
-                                finishReason = gatewayFinishReason(
-                                    raw["finishReason"]?.stringValue ?? raw["finish_reason"]?.stringValue,
+                                finishReason = gatewayV4FinishReason(
+                                    raw["finishReason"] ?? raw["finish_reason"],
                                     hasToolCalls: hasToolCalls
                                 )
-                                finishUsage = tokenUsage(from: raw)
-                                finishProviderMetadata = gatewayProviderMetadata(raw["providerMetadata"])
+                                finishUsage = gatewayV4Usage(from: raw)
+                                finishProviderMetadata = providerMetadata
                                 break
                             }
                         }
                     }
+                    flushEndedToolInputs()
                     if let textID = activeTextID {
                         continuation.yield(.textEnd(id: textID))
                     }
@@ -550,98 +691,7 @@ public final class GatewayLanguageModel: LanguageModel, @unchecked Sendable {
     }
 
     fileprivate func gatewayLanguageBody(for request: LanguageModelRequest) -> JSONValue {
-        var body: [String: JSONValue] = [
-            "prompt": .array(request.messages.map { message in
-                .object([
-                    "role": .string(message.role.rawValue),
-                    "content": .array(message.content.map { part in
-                        switch part {
-                        case let .text(text, _):
-                            return .object(["type": .string("text"), "text": .string(text)])
-                        case let .reasoning(text, providerMetadata):
-                            return .object(["type": .string("reasoning"), "text": .string(text), "providerMetadata": .object(providerMetadata)])
-                        case let .imageURL(url, _):
-                            return .object([
-                                "type": .string("file"),
-                                "data": .object(["type": .string("url"), "url": .string(url)])
-                            ])
-                        case let .data(mimeType, data, _):
-                            return .object([
-                                "type": .string("file"),
-                                "mediaType": .string(mimeType),
-                                "data": .object(["type": .string("data"), "data": .string(data.base64EncodedString())])
-                            ])
-                        case let .file(mimeType, data, filename, _):
-                            var file: [String: JSONValue] = [
-                                "type": .string("file"),
-                                "mediaType": .string(mimeType),
-                                "data": .object(["type": .string("data"), "data": .string(data.base64EncodedString())])
-                            ]
-                            if let filename { file["filename"] = .string(filename) }
-                            return .object(file)
-                        case let .reasoningFile(file):
-                            var output: [String: JSONValue] = [
-                                "type": .string("reasoning-file"),
-                                "mediaType": .string(file.mediaType)
-                            ]
-                            if let id = file.id { output["id"] = .string(id) }
-                            if let filename = file.filename { output["filename"] = .string(filename) }
-                            if let data = file.data {
-                                output["data"] = .object(["type": .string("data"), "data": .string(data.base64EncodedString())])
-                            } else if let url = file.url {
-                                output["data"] = .object(["type": .string("url"), "url": .string(url)])
-                            }
-                            return .object(output)
-                        case let .custom(value, providerMetadata):
-                            return .object(["type": .string("custom"), "value": value, "providerMetadata": .object(providerMetadata)])
-                        case let .providerReference(mimeType, reference, _, _):
-                            return .object([
-                                "type": .string("file"),
-                                "mediaType": .string(mimeType),
-                                "data": .object(["type": .string("reference"), "reference": .object(reference.mapValues(JSONValue.string))])
-                            ])
-                        case let .toolCall(call):
-                            return .object([
-                                "type": .string("tool-call"),
-                                "toolCallId": .string(call.id),
-                                "toolName": .string(call.name),
-                                "args": gatewayToolArguments(call.arguments)
-                            ])
-                        case let .toolResult(result):
-                            return .object([
-                                "type": .string("tool-result"),
-                                "toolCallId": .string(result.toolCallID),
-                                "toolName": .string(result.toolName),
-                                "result": result.modelOutput ?? result.result
-                            ])
-                        case .toolApprovalRequest, .toolApprovalResponse:
-                            return .object(["type": .string("text"), "text": .string("")])
-                        }
-                    })
-                ])
-            })
-        ]
-        if let temperature = request.temperature { body["temperature"] = .number(temperature) }
-        if let topP = request.topP { body["topP"] = .number(topP) }
-        if let topK = request.topK { body["topK"] = .number(Double(topK)) }
-        if let presencePenalty = request.presencePenalty { body["presencePenalty"] = .number(presencePenalty) }
-        if let frequencyPenalty = request.frequencyPenalty { body["frequencyPenalty"] = .number(frequencyPenalty) }
-        if let seed = request.seed { body["seed"] = .number(Double(seed)) }
-        if let maxOutputTokens = request.maxOutputTokens { body["maxOutputTokens"] = .number(Double(maxOutputTokens)) }
-        if !request.stopSequences.isEmpty { body["stopSequences"] = .array(request.stopSequences) }
-        if let reasoning = request.reasoning { body["reasoning"] = .string(reasoning) }
-        if !request.providerOptions.isEmpty { body["providerOptions"] = .object(request.providerOptions) }
-        let tools = gatewayTools(from: request.tools)
-        if !tools.isEmpty {
-            body["tools"] = .array(tools)
-            if let toolChoice = gatewayToolChoice(
-                from: request.toolChoice ?? request.extraBody["toolChoice"]
-            ) {
-                body["toolChoice"] = toolChoice
-            }
-        }
-        body.merge(request.extraBody) { _, new in new }
-        return .object(body)
+        gatewayLanguageCallOptions(for: request, streaming: false)
     }
 
     private func modelHeaders(streaming: Bool) -> [String: String] {
@@ -701,7 +751,7 @@ extension GatewayLanguageModel: BatchLanguageModel {
         )
         let response = try await config.transport.send(request)
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: providerID, response: response, authMethod: config.authMethod)
         }
         let raw = try response.jsonValue()
         guard let batchID = raw["batchId"]?.stringValue else {
@@ -725,7 +775,7 @@ extension GatewayLanguageModel: BatchLanguageModel {
         )
         let response = try await config.transport.send(request)
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: providerID, response: response, authMethod: config.authMethod)
         }
         return try gatewayBatchStatus(from: response.jsonValue(), providerID: providerID)
     }
@@ -747,7 +797,8 @@ extension GatewayLanguageModel: BatchLanguageModel {
         guard (200..<300).contains(response.statusCode) else {
             throw gatewayAPICallError(
                 provider: providerID,
-                response: try await bufferedHTTPResponse(from: response, request: request)
+                response: try await bufferedHTTPResponse(from: response, request: request),
+                authMethod: config.authMethod
             )
         }
 
@@ -850,7 +901,7 @@ public final class GatewayBatchProvider: AIBatchProvider, @unchecked Sendable {
         )
         let response = try await config.transport.send(request)
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: config.providerID, response: response, authMethod: config.authMethod)
         }
         let raw = try response.jsonValue()
         guard let batchID = raw["batchId"]?.stringValue else {
@@ -874,7 +925,7 @@ public final class GatewayBatchProvider: AIBatchProvider, @unchecked Sendable {
         )
         let response = try await config.transport.send(request)
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: config.providerID, response: response, authMethod: config.authMethod)
         }
         return try gatewayBatchStatus(from: response.jsonValue(), providerID: providerID)
     }
@@ -895,8 +946,9 @@ public final class GatewayBatchProvider: AIBatchProvider, @unchecked Sendable {
         let response = try await transport.stream(request)
         guard (200..<300).contains(response.statusCode) else {
             throw gatewayAPICallError(
-                provider: providerID,
-                response: try await bufferedHTTPResponse(from: response, request: request)
+                provider: config.providerID,
+                response: try await bufferedHTTPResponse(from: response, request: request),
+                authMethod: config.authMethod
             )
         }
         let providerID = self.providerID
@@ -936,7 +988,7 @@ public final class GatewayBatchProvider: AIBatchProvider, @unchecked Sendable {
         )
         let response = try await config.transport.send(request)
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: config.providerID, response: response, authMethod: config.authMethod)
         }
         let raw = try response.jsonValue()
         _ = try gatewayBatchStatus(from: raw, providerID: providerID)
@@ -1172,7 +1224,7 @@ private func gatewayBatchResultContent(from value: JSONValue?) -> [AIResultConte
     }
 }
 
-private func gatewayBatchResultContentPart(
+func gatewayBatchResultContentPart(
     _ part: JSONValue,
     toolCallsByID: [String: AIToolCall]
 ) -> AIResultContentPart {
@@ -1265,7 +1317,7 @@ private func gatewayBatchToolCall(from part: JSONValue) -> AIToolCall? {
     )
 }
 
-private func gatewayBatchToolResult(from part: JSONValue) -> AIToolResult? {
+func gatewayBatchToolResult(from part: JSONValue) -> AIToolResult? {
     guard part["type"]?.stringValue == "tool-result",
           let toolCallID = part["toolCallId"]?.stringValue ?? part["tool_call_id"]?.stringValue,
           let toolName = part["toolName"]?.stringValue ?? part["tool_name"]?.stringValue,
@@ -1287,7 +1339,7 @@ private func gatewayBatchToolResult(from part: JSONValue) -> AIToolResult? {
     )
 }
 
-private func gatewayBatchToolApprovalRequest(
+func gatewayBatchToolApprovalRequest(
     from part: JSONValue,
     toolCallsByID: [String: AIToolCall]
 ) -> AIToolApprovalRequest? {
@@ -1335,7 +1387,7 @@ private func gatewayBatchToolApprovalResponse(from part: JSONValue) -> AIToolApp
     )
 }
 
-private func gatewayBatchFile(from part: JSONValue) -> AIStreamFile? {
+func gatewayBatchFile(from part: JSONValue) -> AIStreamFile? {
     guard let mediaType = part["mediaType"]?.stringValue ?? part["media_type"]?.stringValue else {
         return nil
     }

@@ -21,9 +21,12 @@ public struct GatewaySpeechFactory: Sendable {
         do {
             response = try await config.transport.send(AIHTTPRequest(method: "POST", url: try gatewaySpeechOriginURL(config.baseURL),
                                                                       headers: config.headers.mergingHeaders(["content-type": "application/json"]), body: try encodeJSONBody(body)))
-        } catch { throw speechGatewayConnectionError(error) }
+        } catch {
+            if error is GatewayError || gatewayIsCallerCancellation(error) { throw error }
+            throw gatewayStreamResponseError(String(describing: error))
+        }
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayErrorFromHTTPStatus(statusCode: response.statusCode, body: response.bodyText, headers: response.headers)
+            throw gatewayErrorFromHTTPStatus(statusCode: response.statusCode, body: response.bodyText, headers: response.headers, authMethod: config.authMethod)
         }
         let raw = try response.jsonValue()
         guard let token = raw["token"]?.stringValue, !token.isEmpty else { throw AIError.invalidResponse(provider: "gateway", message: "Gateway speech client-secret response did not contain a non-empty token.") }
@@ -115,10 +118,41 @@ func speechGatewayServerError(_ raw: JSONValue) -> any Error {
                                "internal_server_error": 500, "invalid_request_error": 400, "model_not_found": 404, "rate_limit_exceeded": 429]
     if let type = raw["type"]?.stringValue, let code = codes[type], let message = raw["message"]?.stringValue,
        let kind = GatewayErrorType(rawValue: type) { return GatewayError(type: kind, message: message, statusCode: code, response: .object(["error": raw])) }
-    return AIStreamingSpeechError(provider: "gateway", message: "AI Gateway speech stream failed: " + (raw["message"]?.stringValue ?? raw.stringValue ?? String(describing: raw)), rawValue: raw)
+    return AIStreamingSpeechError(provider: "gateway", message: "AI Gateway speech stream failed: " + gatewayStreamErrorPayloadMessage(raw), rawValue: raw)
+}
+
+/// Terminal stream errors follow upstream `asGatewayError` for a plain
+/// `Error`: a `GatewayResponseError` (status 500) whose message wraps the
+/// original as `Invalid error response format: Gateway request failed: ...`.
+func gatewayStreamResponseError(_ message: String, response: JSONValue? = nil) -> GatewayError {
+    GatewayError(
+        type: .responseError,
+        message: "Invalid error response format: Gateway request failed: \(message)",
+        statusCode: 500,
+        response: response
+    )
+}
+
+/// Upstream `getServerErrorMessage`: a string `message` field, otherwise the
+/// JSON text of object payloads (never `[object Object]`) or the raw string.
+func gatewayStreamErrorPayloadMessage(_ raw: JSONValue) -> String {
+    if let message = raw["message"]?.stringValue { return message }
+    if let string = raw.stringValue { return string }
+    if raw == .null { return "unknown error" }
+    return (try? String(decoding: encodeJSONBody(raw), as: UTF8.self)) ?? String(describing: raw)
 }
 
 func speechGatewayConnectionError(_ error: any Error) -> any Error {
-    if error is GatewayError || gatewayIsCallerCancellation(error) || error is AIStreamingSpeechError { return error }
-    return GatewayError(type: .internalServerError, message: "Connection error on AI Gateway speech stream: \(error)", statusCode: 500)
+    if error is GatewayError || gatewayIsCallerCancellation(error) { return error }
+    if let error = error as? AIStreamingSpeechError {
+        // Core reports a close without a finish part generically; upstream
+        // names the Gateway speech stream and keeps the close code/reason.
+        let corePrefix = "Speech stream closed before completion"
+        var message = error.message
+        if message.hasPrefix(corePrefix) {
+            message = "AI Gateway speech stream closed before a finish part was received" + message.dropFirst(corePrefix.count)
+        }
+        return gatewayStreamResponseError(message, response: error.rawValue)
+    }
+    return gatewayStreamResponseError("Connection error on AI Gateway speech stream: \(error)")
 }

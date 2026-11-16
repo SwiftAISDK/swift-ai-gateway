@@ -333,11 +333,12 @@ import Testing
         _ = try await iterator.next()
         Issue.record("Expected the terminal close to throw GatewayError")
     } catch let error as GatewayError {
-        #expect(error.type == .notFound)
-        #expect(error.statusCode == 404)
-        #expect(error.upstreamType == "not_found")
-        #expect(error.isNotFound)
-        #expect(!error.isRetryable)
+        // Upstream 4.0.146 `SERVER_ERROR_STATUS_CODES` has no `not_found`
+        // entry, so the part becomes a generic stream failure that
+        // `asGatewayError` wraps into a GatewayResponseError (500).
+        #expect(error.type == .responseError)
+        #expect(error.statusCode == 500)
+        #expect(error.message == "Invalid error response format: Gateway request failed: AI Gateway transcription stream failed: stream not found")
     }
 }
 

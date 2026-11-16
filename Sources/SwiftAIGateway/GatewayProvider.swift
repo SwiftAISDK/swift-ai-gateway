@@ -11,15 +11,57 @@ public struct GatewayModelEntry: Equatable, Sendable {
     public var modelType: String?
     public var provider: String?
     public var modelID: String?
+    /// Optional model description from the Gateway catalog.
+    public var description: String?
+    /// Per-token USD pricing, when the catalog publishes it.
+    public var pricing: GatewayModelPricing?
+    /// The catalog's `specification.specificationVersion`.
+    public var specificationVersion: String?
 
-    public init(id: String, name: String? = nil, modelType: String? = nil, provider: String? = nil, modelID: String? = nil) {
+    public init(
+        id: String,
+        name: String? = nil,
+        modelType: String? = nil,
+        provider: String? = nil,
+        modelID: String? = nil,
+        description: String? = nil,
+        pricing: GatewayModelPricing? = nil,
+        specificationVersion: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.modelType = modelType
         self.provider = provider
         self.modelID = modelID
+        self.description = description
+        self.pricing = pricing
+        self.specificationVersion = specificationVersion
     }
 }
+
+/// Upstream `GatewayLanguageModelEntry.pricing`: USD cost strings per token.
+public struct GatewayModelPricing: Equatable, Sendable {
+    public var input: String
+    public var output: String
+    /// Mapped from `input_cache_read`; omitted when absent or empty.
+    public var cachedInputTokens: String?
+    /// Mapped from `input_cache_write`; omitted when absent or empty.
+    public var cacheCreationInputTokens: String?
+
+    public init(input: String, output: String, cachedInputTokens: String? = nil, cacheCreationInputTokens: String? = nil) {
+        self.input = input
+        self.output = output
+        self.cachedInputTokens = cachedInputTokens
+        self.cacheCreationInputTokens = cacheCreationInputTokens
+    }
+}
+
+/// Model types upstream keeps in the catalog; entries with any other
+/// non-null `modelType` are filtered out.
+let gatewayKnownModelTypes: Set<String> = [
+    "embedding", "decision", "evaluation", "image", "language", "realtime",
+    "reranking", "speech", "transcription", "video"
+]
 
 public struct GatewayCredits: Equatable, Sendable {
     public var balance: String
@@ -188,22 +230,16 @@ public struct GatewayTranscriptionFactory: Sendable {
                 ]),
                 body: try encodeJSONBody(.object(body))
             ))
-        } catch let error as GatewayError {
-            throw error
         } catch {
-            if gatewayIsCallerCancellation(error) { throw error }
-            throw GatewayError(
-                type: .internalServerError,
-                message: String(describing: error),
-                statusCode: 500
-            )
+            throw gatewayTransportError(error)
         }
 
         guard (200..<300).contains(response.statusCode) else {
             throw gatewayErrorFromHTTPStatus(
                 statusCode: response.statusCode,
                 body: response.bodyText,
-                headers: response.headers
+                headers: response.headers,
+                authMethod: config.authMethod
             )
         }
         let raw = try response.jsonValue()
@@ -229,6 +265,7 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
     public let supportedCapabilities: Set<ModelCapability> = [.language, .embedding, .image, .transcription, .speech, .video, .reranking, .evaluation, .decision]
     private let config: GatewayModelConfiguration
     private let webSocketTransport: any AIDuplexWebSocketTransport
+    let metadataCache: GatewayMetadataCache
 
     public convenience init(
         configuration settings: GatewayProviderSettings,
@@ -257,7 +294,9 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
             }
         }
         if let credentialResolver { settings.apiKey = credentialResolver.placeholder }
-        if let teamIDOrSlug {
+        // Upstream spreads custom headers after the team header, so a custom
+        // `x-vercel-ai-gateway-team` header (any letter case) wins.
+        if let teamIDOrSlug, normalizeHeaders(settings.headers)["x-vercel-ai-gateway-team"] == nil {
             settings.headers["x-vercel-ai-gateway-team"] = teamIDOrSlug
         }
         var auth = try gatewayAuthToken(settings: settings)
@@ -283,9 +322,14 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         let baseURL = withoutTrailingSlash(settings.baseURL ?? "https://ai-gateway.vercel.sh/v4/ai")
         let queryParams = settings.queryParams
         config = GatewayModelConfiguration(http: .init(providerID: providerID, headers: headers, transport: settings.transport, credentialResolver: credentialResolver,
+            dynamicHeaders: { gatewayO11yHeaders() },
             url: { _, path in try providerURL("\(baseURL)\(path)", queryParams: queryParams) }), baseURL: baseURL,
             batchResultMaxLineBytes: try aiBatchResultLineLimit(settings.batchResultDownloads?.maxLineBytes))
         self.webSocketTransport = webSocketTransport
+        self.metadataCache = GatewayMetadataCache(
+            refreshMillis: settings.metadataCacheRefreshMillis ?? 1000 * 60 * 5,
+            currentDate: settings.currentDate ?? { Date() }
+        )
     }
 
     public func languageModel(_ modelID: String) throws -> any LanguageModel {
@@ -381,22 +425,13 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         try evaluationModel(modelID)
     }
 
+    /// Returns the Gateway model catalog. Like upstream, the catalog is
+    /// cached for `metadataCacheRefreshMillis`; after that a refresh starts
+    /// while the previously cached catalog is returned.
     public func availableModels() async throws -> [GatewayModelEntry] {
-        let response = try await config.transport.send(AIHTTPRequest(method: "GET", url: try requireURL("\(config.baseURL)/config"), headers: config.headers))
-        guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+        try await metadataCache.models { [config, providerID] in
+            try await gatewayFetchAvailableModels(config: config, providerID: providerID)
         }
-        let raw = try response.jsonValue()
-        return raw["models"]?.arrayValue?.compactMap { item in
-            guard let id = item["id"]?.stringValue else { return nil }
-            return GatewayModelEntry(
-                id: id,
-                name: item["name"]?.stringValue,
-                modelType: item["modelType"]?.stringValue ?? item["model_type"]?.stringValue,
-                provider: item["specification"]?["provider"]?.stringValue,
-                modelID: item["specification"]?["modelId"]?.stringValue
-            )
-        } ?? []
     }
 
     public func getAvailableModels() async throws -> [GatewayModelEntry] {
@@ -409,9 +444,9 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         if let team = config.headers.first(where: { $0.key.lowercased() == "x-vercel-ai-gateway-team" })?.value.trimmingCharacters(in: .whitespacesAndNewlines), !team.isEmpty {
             components.queryItems = [URLQueryItem(name: team.hasPrefix("team_") ? "teamId" : "slug", value: team)]
         }
-        let response = try await config.transport.send(AIHTTPRequest(method: "GET", url: components.url ?? originURL, headers: config.headers))
+        let response = try await gatewayMetadataSend(config, AIHTTPRequest(method: "GET", url: components.url ?? originURL, headers: config.headers))
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: providerID, response: response, authMethod: config.authMethod)
         }
         let raw = try response.jsonValue()
         return GatewayCredits(balance: raw["balance"]?.stringValue ?? "", totalUsed: raw["total_used"]?.stringValue ?? raw["totalUsed"]?.stringValue ?? "")
@@ -436,26 +471,26 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
             queryItems.append(URLQueryItem(name: "tags", value: params.tags.joined(separator: ",")))
         }
 
-        let response = try await config.transport.send(AIHTTPRequest(
+        let response = try await gatewayMetadataSend(config, AIHTTPRequest(
             method: "GET",
             url: try gatewayOriginURL(baseURL: config.baseURL, path: "/v1/report", queryItems: queryItems),
             headers: config.headers
         ))
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: providerID, response: response, authMethod: config.authMethod)
         }
         let raw = try response.jsonValue()
         return GatewaySpendReportResponse(results: raw["results"]?.arrayValue?.map(gatewaySpendReportRow) ?? [])
     }
 
     public func getGenerationInfo(id: String) async throws -> GatewayGenerationInfo {
-        let response = try await config.transport.send(AIHTTPRequest(
+        let response = try await gatewayMetadataSend(config, AIHTTPRequest(
             method: "GET",
             url: try gatewayOriginURL(baseURL: config.baseURL, path: "/v1/generation", queryItems: [URLQueryItem(name: "id", value: id)]),
             headers: config.headers
         ))
         guard (200..<300).contains(response.statusCode) else {
-            throw gatewayAPICallError(provider: providerID, response: response)
+            throw gatewayAPICallError(provider: providerID, response: response, authMethod: config.authMethod)
         }
         let data = try response.jsonValue()["data"] ?? .object([:])
         return GatewayGenerationInfo(
@@ -479,6 +514,96 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
             cacheCreationTokens: data["native_tokens_cache_creation"]?.intValue ?? 0,
             billableWebSearchCalls: data["billable_web_search_calls"]?.intValue ?? 0
         )
+    }
+}
+
+/// Sends a management request, mapping thrown transport errors like upstream
+/// `asGatewayError`.
+private func gatewayMetadataSend(_ config: GatewayModelConfiguration, _ request: AIHTTPRequest) async throws -> AIHTTPResponse {
+    do {
+        return try await config.transport.send(request)
+    } catch {
+        throw gatewayTransportError(error)
+    }
+}
+
+private func gatewayFetchAvailableModels(
+    config: GatewayModelConfiguration,
+    providerID: String
+) async throws -> [GatewayModelEntry] {
+    let response = try await gatewayMetadataSend(config, AIHTTPRequest(method: "GET", url: try requireURL("\(config.baseURL)/config"), headers: config.headers))
+    guard (200..<300).contains(response.statusCode) else {
+        throw gatewayAPICallError(provider: providerID, response: response, authMethod: config.authMethod)
+    }
+    let raw = try response.jsonValue()
+    return raw["models"]?.arrayValue?.compactMap { item in
+        guard let id = item["id"]?.stringValue else { return nil }
+        let modelType = item["modelType"]?.stringValue ?? item["model_type"]?.stringValue
+        if let modelType, !gatewayKnownModelTypes.contains(modelType) { return nil }
+        let pricing = item["pricing"].flatMap { pricing -> GatewayModelPricing? in
+            guard let input = pricing["input"]?.stringValue, let output = pricing["output"]?.stringValue else { return nil }
+            let cacheRead = pricing["input_cache_read"]?.stringValue
+            let cacheWrite = pricing["input_cache_write"]?.stringValue
+            return GatewayModelPricing(
+                input: input,
+                output: output,
+                cachedInputTokens: cacheRead?.isEmpty == false ? cacheRead : nil,
+                cacheCreationInputTokens: cacheWrite?.isEmpty == false ? cacheWrite : nil
+            )
+        }
+        return GatewayModelEntry(
+            id: id,
+            name: item["name"]?.stringValue,
+            modelType: modelType,
+            provider: item["specification"]?["provider"]?.stringValue,
+            modelID: item["specification"]?["modelId"]?.stringValue,
+            description: item["description"]?.stringValue,
+            pricing: pricing,
+            specificationVersion: item["specification"]?["specificationVersion"]?.stringValue
+        )
+    } ?? []
+}
+
+/// Upstream metadata cache: the first call fetches; within the refresh
+/// window the cached catalog is reused; once stale, a refresh starts and the
+/// previously cached catalog is returned until it completes.
+actor GatewayMetadataCache {
+    private let refreshMillis: Int
+    private let currentDate: @Sendable () -> Date
+    private var cached: [GatewayModelEntry]?
+    private var pending: Task<[GatewayModelEntry], any Error>?
+    private var lastFetchTime: Date?
+
+    init(refreshMillis: Int, currentDate: @escaping @Sendable () -> Date) {
+        self.refreshMillis = refreshMillis
+        self.currentDate = currentDate
+    }
+
+    func models(
+        fetch: @escaping @Sendable () async throws -> [GatewayModelEntry]
+    ) async throws -> [GatewayModelEntry] {
+        let now = currentDate()
+        if pending == nil || lastFetchTime.map({ now.timeIntervalSince($0) * 1000 > Double(refreshMillis) }) == true {
+            lastFetchTime = now
+            let task = Task { try await fetch() }
+            pending = task
+            Task { [weak self] in
+                if let models = try? await task.value { await self?.store(models) }
+            }
+        }
+        if let cached { return cached }
+        let models = try await pending!.value
+        cached = models
+        return models
+    }
+
+    /// Waits for an in-flight refresh (tests only).
+    func waitForPendingRefresh() async {
+        _ = try? await pending?.value
+    }
+
+    private func store(_ models: [GatewayModelEntry]) {
+        cached = models
     }
 }
 

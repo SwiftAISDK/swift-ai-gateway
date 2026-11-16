@@ -27,8 +27,11 @@ func parseGatewayText(from raw: JSONValue) -> String? {
     if let text = raw["text"]?.stringValue ?? raw["output_text"]?.stringValue {
         return text
     }
-    let contentText = gatewayContentParts(raw["content"]).compactMap { part in
-        part["text"]?.stringValue
+    // Only text parts contribute; reasoning parts also carry `text`.
+    let contentText = gatewayContentParts(raw["content"]).compactMap { part -> String? in
+        let type = part["type"]?.stringValue
+        guard type == nil || type == "text" else { return nil }
+        return part["text"]?.stringValue
     }.joined()
     if !contentText.isEmpty {
         return contentText
@@ -50,7 +53,7 @@ func gatewayTools(from tools: [String: JSONValue]) -> [JSONValue] {
         var tool: [String: JSONValue] = [
             "type": .string("function"),
             "name": .string(name),
-            "inputSchema": schema
+            "inputSchema": aiFunctionToolInputSchema(schema)
         ]
         if let description = object?["description"]?.stringValue {
             tool["description"] = .string(description)

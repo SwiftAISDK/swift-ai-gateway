@@ -1,5 +1,5 @@
 <!-- Generated distribution; edit the canonical repository. -->
-# swift-ai-gateway 1.3.1
+# swift-ai-gateway 1.4.0
 
 Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions are in PROVENANCE.json and Porting/.
 
@@ -8,7 +8,7 @@ Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions
 Add this package to your SwiftPM dependencies:
 
 ```swift
-.package(url: "https://github.com/SwiftAISDK/swift-ai-gateway.git", from: "1.3.1")
+.package(url: "https://github.com/SwiftAISDK/swift-ai-gateway.git", from: "1.4.0")
 ```
 
 Products: `SwiftAIGateway`.
@@ -16,60 +16,29 @@ Contribute and report issues in the canonical SwiftAISDK repository.
 
 ## Authored usage guide
 
-# SwiftAIGateway
+# Vercel AI Gateway for Swift
 
-Swift-native port of `@ai-sdk/gateway`. Maintained in the canonical SwiftAISDK repository and exported as an independent Swift package.
+`SwiftAIGateway` adds Vercel AI Gateway to [SwiftAISDK](https://github.com/SwiftAISDK/SwiftAISDK), an independent Swift port of the Vercel AI SDK. It ports `@ai-sdk/gateway` and supports text generation, embeddings, image generation, transcription, speech, video generation, reranking, evaluation and decisions.
+
+Provider guide with models, options, streaming and errors:
+
+- [Vercel AI Gateway](https://swiftaisdk.github.io/SwiftAISDK/providers/gateway/)
+
+## Usage
+
+Add the `SwiftAI` product from `swift-ai-core` and the `SwiftAIGateway` product from this package to your target, then create the provider:
 
 ```swift
+import SwiftAI
 import SwiftAIGateway
 
-let provider = try GatewayProvider(configuration: .init(apiKey: "..."))
-let model = try provider.languageModel("openai/gpt-5")
+let provider = try AIProviders.gateway(configuration: GatewayProviderSettings())
 ```
 
-The package owns Gateway authentication, model and management routes, batch,
-streaming audio and decision/evaluation adapters. Provider-neutral contracts and
-socket lifecycle support come from `swift-ai-core`. The reviewed upstream
-baseline is `@ai-sdk/gateway` 4.0.145.
+By default the provider reads `AI_GATEWAY_API_KEY` and `VERCEL_OIDC_TOKEN` from the environment; values set in `GatewayProviderSettings` take precedence.
 
-`provider.realtimeModel("openai/gpt-realtime-2")` speaks Gateway's normalized
-protocol. It supports short-lived client-secret WebSockets with team subprotocols
-and trusted server WebSockets with freshly resolved headers. Use
-`getResolvedServerWebSocketConfig()` with async credentials, or
-`AIRealtimeSession.connectServer` from `SwiftAI` for the shared socket lifecycle.
-The realtime route rejects transcription intent; streaming transcription keeps
-its existing separate route. Usage stays in the original event envelope and is
-available through `AIRealtimeServerEvent.usage`.
+To use every provider through one dependency, add the complete [SwiftAISDK](https://github.com/SwiftAISDK/SwiftAISDK) package instead; see [Install](https://swiftaisdk.github.io/SwiftAISDK/getting-started/install/).
 
-`GatewayTools.deepseekSearch` and `deepseekFetch` add Gateway-executed standalone
-web tools. Their results and structured errors remain JSON, including
-`retryAfter`, `statusText` and future additive fields, in unary and streamed tool
-results. Generation info exposes optional `marketCost`, `surchargeCost` and
-`gatewayCost`, preserving reported zero values.
+## Contributing
 
-Transcription returns independent `words` while retaining `segments`. The shared
-`timestampGranularities` option is unsupported by the Gateway wire adapter and
-produces a warning. Video results expose `uploadedVideos` for assets stored by
-the provider even when no downloadable URL or base64 payload is returned.
-
-An empty configured API key falls through to the Vercel OIDC environment token,
-which is resolved for each request. A nonempty key remains selected if it is
-invalid; async API key callbacks must return a nonempty key. Native construction
-still reports missing credentials immediately.
-
-`gateway.experimental_streamingImageDecoding` is a client-only upstream option.
-The native adapter strips it from requests and warns when enabled: image results
-still retain buffered base64 strings because the native incremental JSON/binary
-response parser is not implemented. No reduced-memory or byte-result behavior
-is claimed. Browser media ownership remains separate from native WebSockets.
-
-Run `swift test --package-path Packages/swift-ai-gateway` in the canonical checkout.
-Distribution manifests and repositories are generated from the package catalog.
-
-See [provider usage and capabilities](https://github.com/SwiftAISDK/SwiftAISDK/blob/main/docs-site/scripts/provider-guides/gateway.md) for authentication, options and supported surfaces.
-
-## Current upstream review
-
-The reviewed baseline is `@ai-sdk/gateway` 4.0.145. `GatewayProviderOptions(headquarters: ["US", "DE"])` forwards country routing restrictions; prefix each code with `!` for exclusions. Other Gateway options remain available in `additionalOptions` and open JSON provider options.
-
-`GatewayTakoSearchConfig` adds developer-only `variableCost`, `maxVariableCostUSD` and `extraBody`. Set the cost cap to `.null` to remove it, or omit it to retain the server default. These settings remain camelCase tool factory arguments; model-input fields are separate. Tako results retain variable-cost usage, premium/redacted row metadata, total matches, relevance scores and placeholder cards without lossy decoding. Browserbase fetch calls preserve `allow_redirects` in tool input. The upstream switch to Zod Mini and JavaScript bundle/type changes do not alter Swift runtime schemas.
+This package is exported from `Packages/swift-ai-gateway` in the canonical [SwiftAISDK](https://github.com/SwiftAISDK/SwiftAISDK) repository. Open issues and pull requests there.

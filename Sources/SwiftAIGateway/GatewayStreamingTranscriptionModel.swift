@@ -287,10 +287,8 @@ private final class GatewayStreamingTranscriptionSession:
                         )
                     } else {
                         complete(
-                            throwing: GatewayError(
-                                type: .internalServerError,
-                                message: "AI Gateway transcription stream closed before a finish part was received",
-                                statusCode: 500,
+                            throwing: gatewayStreamResponseError(
+                                "AI Gateway transcription stream closed before a finish part was received",
                                 response: .object([
                                     "closeCode": .number(Double(metadata.code)),
                                     "closeReason": metadata.reason.map(JSONValue.string) ?? .null
@@ -305,10 +303,8 @@ private final class GatewayStreamingTranscriptionSession:
 
             if !isCompleted {
                 complete(
-                    throwing: GatewayError(
-                        type: .internalServerError,
-                        message: "AI Gateway transcription stream closed before a finish part was received",
-                        statusCode: 500
+                    throwing: gatewayStreamResponseError(
+                        "AI Gateway transcription stream closed before a finish part was received"
                     ),
                     closeCode: nil
                 )
@@ -708,33 +704,31 @@ private func gatewayStreamErrorMessage(_ error: JSONValue) -> String {
     return (try? gatewayJSONString(error)) ?? String(describing: error)
 }
 
+/// Upstream `createErrorFromServerErrorPart`: only payloads with a string
+/// `message` and one of the canonical server error types become typed Gateway
+/// errors; anything else becomes a generic stream failure.
 private func gatewayErrorFromStreamPart(_ error: JSONValue) -> GatewayError {
-    let rawType = error["type"]?.stringValue
-    let mapped: (GatewayErrorType, Int)
-    switch rawType {
-    case "authentication_error":
-        mapped = (.authenticationError, 401)
-    case "failed_dependency":
-        mapped = (.failedDependency, 424)
-    case "forbidden":
-        mapped = (.forbidden, 403)
-    case "invalid_request_error":
-        mapped = (.invalidRequestError, 400)
-    case "model_not_found":
-        mapped = (.modelNotFound, 404)
-    case "not_found":
-        mapped = (.notFound, 404)
-    case "rate_limit_exceeded":
-        mapped = (.rateLimitExceeded, 429)
-    case "internal_server_error":
-        mapped = (.internalServerError, 500)
-    default:
-        mapped = (.internalServerError, 500)
+    let statusCodes: [String: (GatewayErrorType, Int)] = [
+        "authentication_error": (.authenticationError, 401),
+        "failed_dependency": (.failedDependency, 424),
+        "forbidden": (.forbidden, 403),
+        "internal_server_error": (.internalServerError, 500),
+        "invalid_request_error": (.invalidRequestError, 400),
+        "model_not_found": (.modelNotFound, 404),
+        "rate_limit_exceeded": (.rateLimitExceeded, 429)
+    ]
+    if let message = error["message"]?.stringValue,
+       let type = error["type"]?.stringValue,
+       let mapped = statusCodes[type] {
+        return GatewayError(
+            type: mapped.0,
+            message: message,
+            statusCode: mapped.1,
+            response: .object(["error": error])
+        )
     }
-    return GatewayError(
-        type: mapped.0,
-        message: gatewayStreamErrorMessage(error),
-        statusCode: mapped.1,
+    return gatewayStreamResponseError(
+        "AI Gateway transcription stream failed: \(gatewayStreamErrorPayloadMessage(error))",
         response: .object(["error": error])
     )
 }
@@ -743,9 +737,7 @@ private func gatewayTranscriptionConnectionError(_ error: Error) -> Error {
     if gatewayIsCallerCancellation(error) || error is GatewayError {
         return error
     }
-    return GatewayError(
-        type: .internalServerError,
-        message: "Connection error on AI Gateway transcription stream: \(error)",
-        statusCode: 500
+    return gatewayStreamResponseError(
+        "Connection error on AI Gateway transcription stream: \(error)"
     )
 }

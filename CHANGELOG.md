@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.1
+## 1.4.0
 
-- Align the versioned request identity with the reviewed published package while retaining native open String model IDs and existing request, response, option, error, stream and telemetry behavior. Derived TypeScript model-ID/catalog reorganizations preserve the existing native runtime policies. Reviewed npm delta: @ai-sdk/gateway 4.0.145 to 4.0.146. Validation passed: node Scripts/test-packages.mjs (55 owning packages, 2451 owning tests and 1736 compatibility tests), generation checks, 27 tooling tests, isolation/version checks, deterministic exports and minimum-dependency consumers. Documentation check/build passed (104 pages). Publication is gated by exact-source Swift 6.3.3 CI; subsequent public refs and clients are recorded in Docs/ReleaseVerification20261115.json. Paid/live-service checks were not run; this delta does not claim full-package parity.
-  Compatibility: Compatible versioned request identity correction; existing public selectors and dependency minimums remain. npm baselines and Swift SemVer are independent.
+- Language requests use the V4 call-option shape Gateway reads; results parse usage, finish reason and response metadata; streams forward error, file, custom, approval and response-metadata parts without duplicate tool calls. Authentication, malformed-body and network errors match upstream, observability headers are sent on Vercel, `availableModels()` caches for five minutes (`metadataCacheRefreshMillis`), a custom team header wins and `GatewayTools.exaSearch` and `GatewayRealtimeAuth` are added. Image, video and speech bodies and media errors match upstream; `maxImagesPerCall` is unlimited.
+  Compatibility: Source-compatible; changes are additive. Request bodies, results, warnings and errors change to match the reviewed upstream package.

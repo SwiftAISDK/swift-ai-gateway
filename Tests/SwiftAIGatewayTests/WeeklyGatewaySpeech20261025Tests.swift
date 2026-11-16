@@ -71,7 +71,7 @@ import Testing
         let provider = try AIProviders.gateway(configuration: .init(apiKey: "token"), webSocketTransport: socket)
         let raw = try await provider.experimentalSpeech("test/model").stream(.init(text: "hello"))
         socket.socket.open(); socket.socket.closed()
-        do { for try await _ in raw.stream {}; Issue.record("Expected incomplete stream error") } catch { #expect(String(describing: error).contains("before completion")) }
+        do { for try await _ in raw.stream {}; Issue.record("Expected incomplete stream error") } catch { #expect(String(describing: error).contains("AI Gateway speech stream closed before a finish part was received")) }
         #expect(await weeklySpeechWait { socket.socket.closeCount == 1 })
     }
 }

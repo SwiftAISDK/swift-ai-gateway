@@ -53,26 +53,16 @@ public final class GatewayDecisionModel: AIDecisionModelV4, @unchecked Sendable 
         let response: AIHTTPResponse
         do {
             response = try await config.transport.send(request)
-        } catch let error as AIAbortError {
-            throw error
-        } catch let error as CancellationError {
-            throw error
-        } catch let error as GatewayError {
-            throw error
         } catch {
-            if gatewayIsCallerCancellation(error) { throw error }
-            throw GatewayError(
-                type: .internalServerError,
-                message: String(describing: error),
-                statusCode: 500
-            )
+            throw gatewayErrorForThrownError(error) ?? error
         }
 
         guard (200..<300).contains(response.statusCode) else {
             throw gatewayErrorFromHTTPStatus(
                 statusCode: response.statusCode,
                 body: response.bodyText,
-                headers: response.headers
+                headers: response.headers,
+                authMethod: config.authMethod
             )
         }
 

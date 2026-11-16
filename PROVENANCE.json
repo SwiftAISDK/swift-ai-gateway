@@ -1,25 +1,25 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-gateway",
-  "version": "1.3.1",
-  "releaseID": "weekly-upstream-20261115",
+  "version": "1.4.0",
+  "releaseID": "upstream-parity-20261116",
   "source": {
-    "commit": "1e543b35e0259a5bda888665dacf2d4a7f1bb0ed",
-    "baseCommit": "1e543b35e0259a5bda888665dacf2d4a7f1bb0ed",
+    "commit": "1c457dea36be42376a6853aecd5c48ffc4942178",
+    "baseCommit": "1c457dea36be42376a6853aecd5c48ffc4942178",
     "workingTree": false,
-    "inputsSHA256": "5508ffc6347bffaed13fb29409eb856df9a7796d3ebdcb6f623d1e8871b52999"
+    "inputsSHA256": "d7b8f52add7828d7e9ed20418fe072e7db03e75483a168bb7f5c34e9d2a04a13"
   },
   "dependencies": [
     {
       "package": "swift-ai-core",
-      "from": "1.3.0"
+      "from": "1.6.0"
     }
   ],
   "changes": [
     {
-      "id": "weekly-upstream-20261115",
-      "notes": "Align the versioned request identity with the reviewed published package while retaining native open String model IDs and existing request, response, option, error, stream and telemetry behavior. Derived TypeScript model-ID/catalog reorganizations preserve the existing native runtime policies. Reviewed npm delta: @ai-sdk/gateway 4.0.145 to 4.0.146. Validation passed: node Scripts/test-packages.mjs (55 owning packages, 2451 owning tests and 1736 compatibility tests), generation checks, 27 tooling tests, isolation/version checks, deterministic exports and minimum-dependency consumers. Documentation check/build passed (104 pages). Publication is gated by exact-source Swift 6.3.3 CI; subsequent public refs and clients are recorded in Docs/ReleaseVerification20261115.json. Paid/live-service checks were not run; this delta does not claim full-package parity.",
-      "compatibility": "Compatible versioned request identity correction; existing public selectors and dependency minimums remain. npm baselines and Swift SemVer are independent."
+      "id": "upstream-parity-20261116",
+      "notes": "Language requests use the V4 call-option shape Gateway reads; results parse usage, finish reason and response metadata; streams forward error, file, custom, approval and response-metadata parts without duplicate tool calls. Authentication, malformed-body and network errors match upstream, observability headers are sent on Vercel, `availableModels()` caches for five minutes (`metadataCacheRefreshMillis`), a custom team header wins and `GatewayTools.exaSearch` and `GatewayRealtimeAuth` are added. Image, video and speech bodies and media errors match upstream; `maxImagesPerCall` is unlimited.",
+      "compatibility": "Source-compatible; changes are additive. Request bodies, results, warnings and errors change to match the reviewed upstream package."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-gateway",
@@ -28,7 +28,7 @@
       "name": "@ai-sdk/gateway",
       "reviewedVersion": "4.0.146",
       "ledgerKind": "provider",
-      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/WeeklyUpstreamAudit20261114.json; 2026-11-15 delta: Docs/WeeklyUpstreamAudit20261115.json",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/Archive/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/Archive/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/Archive/WeeklyUpstreamAudit20261114.json; 2026-11-15 delta: Docs/Archive/WeeklyUpstreamAudit20261115.json",
       "reviewStatus": "imported-reviewed-with-gaps",
       "archiveIntegrity": "sha512-rJ5NQSyjnpo6HSBEYc9Ff6k1EROUuB7KeAfHYVbVDsk68ynY0Eb8JeWflZKXlT6NhYgqyCiBDxE5blXWACXMKQ==",
       "sourceRef": "npm:@ai-sdk/gateway@4.0.146",
@@ -46,7 +46,7 @@
         "TranscriptionModelV4",
         "VideoModelV4"
       ],
-      "contractReview": "2026-11-15: published source/declarations and exact matching-release tests reviewed separately. Native delta scenarios, per-file dispositions, unchanged-catalog evidence and explicit remaining gaps are recorded in Docs/WeeklyUpstreamAudit20261115.json. Required checks remain a separate gate; no full-package/live-service parity claim."
+      "contractReview": "2026-11-15: published source/declarations and exact matching-release tests reviewed separately. Native delta scenarios, per-file dispositions, unchanged-catalog evidence and explicit remaining gaps are recorded in Docs/Archive/WeeklyUpstreamAudit20261115.json. Required checks remain a separate gate; no full-package/live-service parity claim."
     }
   ],
   "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
@@ -65,43 +65,51 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Porting/map.json",
-      "sha256": "5f7e54ddcdd5c99aaf4269115320a236e4c6482c5f93174075c39e6089ce0f34"
+      "sha256": "3fb96d0ba0c8d8eee94964d397216a535753eecbcbdf21c2d90a2868d3322dfe"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/README.md",
-      "sha256": "7268f9f19dfa7f65011d4622416c58abee69cb21176e955a1a5c6390cf687ec0"
+      "sha256": "d7e349316a2ff3a9c3d55b013b75a7f253a898cb327f7c79e11377e446ea53c5"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayConfiguration.swift",
-      "sha256": "c89a1f5b3753efd59ce33f625ddb396c707b65d3f7d6388265a38de04a6853e0"
+      "sha256": "2787667d29265e7f6c3012fd2c3fb647691da9897ff203a0a48fd6f1fe1937b6"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayDecisionModel.swift",
-      "sha256": "e0745603952589931edb5499dc636f68a984bb597cdb4b2abf54f9e2d4eaaa44"
+      "sha256": "8cbf5ec8635d25a988a90a47648913f7011143a3c0cb5c81fd4ca64d18c6fb2b"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayErrors.swift",
-      "sha256": "12b43c66998d95f33f0fb26c36b01d90226daee2c76accece4b0facc1b64fe53"
+      "sha256": "f39055d80dcf8545d97df8ca9e4ca944afe5f71161b9a00aa725db6e3a3771bf"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayEvaluationModel.swift",
       "sha256": "a4ccf7fabeed3a30d92043fbe7b638dbc528216c903728013e6db1f3d56bb2e6"
     },
     {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayLanguageWire.swift",
+      "sha256": "42e970a1e9e022ab4ed5842c55f8b40a2b5ef5b56542466974657e4b041f00ab"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayMediaModels.swift",
-      "sha256": "c5cbf8a6dd3ad10982a6264dd47f9160dd7702e6d287b58c07661ca110c8a4a3"
+      "sha256": "04fd2e91ed88d996097b368405fe0bbb2cc13ad5f1dd560d8780505f845d244c"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayModels.swift",
-      "sha256": "3062583948e12b336fe24563fc37dd0b0124aca1edaf74348b0fffba50ddf29c"
+      "sha256": "a7a145e2f218d164ee86cfd3e758921f5a7cd7998c173508b67ed366ab100469"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayParsing.swift",
-      "sha256": "6c8378e529934545026794ba5ad8c3d5036a466fbac6dca5e21e4a52701ed4b1"
+      "sha256": "934e2b354e27b35bdb644ebf187a5bfda99f430488f82ad6d5409e41607a9c29"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
-      "sha256": "c1edfa3a8cb1d98e54c9c1ffdfddfac4bd1ebd10f95c6e14f21215da2eb11e57"
+      "sha256": "87bb9b0ff70c58e6d6a7ed3a29248d0aa8821a9e0477612845a573b0982303cc"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeAuth.swift",
+      "sha256": "c68b5f1a1fdd0a2b8e16e05b95269f6f23f3b8721130f4eb0dde8142ae71807f"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeModel.swift",
@@ -109,11 +117,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
-      "sha256": "2a6a361696eff1990e44298efc46e4c56a79a8da755af4e13d82440fe451e9d5"
+      "sha256": "bbff26b2055a2f161b671032b914dff91df2be542d5c39cc870eaaae71fd769d"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingTranscriptionModel.swift",
-      "sha256": "68ddfc51ef0db301e0f72bf789455f18d06acac14725a84f89f2594ae5af842b"
+      "sha256": "8d01bd3d0e173711bb64bb9446fa9d67f1e6cd35966d60b75e56cffbb81a65c7"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/FixtureDownloadTransport.swift",
@@ -129,7 +137,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayStreamingTranscriptionUpstreamParityTests.swift",
-      "sha256": "a5d6754c93a3abbf2b02f97afe9c9ffabe080b3d012b3029a6f2542e3347546e"
+      "sha256": "eeb6b511b3ddc2323ff611f820c78c36f4c0f27e7b59a82459cecf851c6f4370"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
@@ -140,12 +148,20 @@
       "sha256": "f5565eb1a8ff3213619f525650878f0bed22c6e0235a5b9da3a148682b17ecdc"
     },
     {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/ParityAuditCoreTests.swift",
+      "sha256": "8b876b600552f9ab692298e4e663f6f8a3a5920cd824e9bcfa2531214bbd801c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/ParityAuditMediaTests.swift",
+      "sha256": "40141346f5fda1d63f53591cc8594cacf51fb7e2fbbc089d4e4a8b1b7be3d485"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/TestSupport.swift",
       "sha256": "7da72ae97fb00936881f4efa04bd0e5915470feff2f2c80b739628f3ebcf9f44"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261101CancellationTests.swift",
-      "sha256": "f559113d5105625bd6b71cc6573fe9a3cb3298dde503390ce4ebd1d17f1c4fd1"
+      "sha256": "5279d4eb5ad524d4fcb7e6cbb034fef6b256fa75fa76bb2464edad251d9a3071"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261108GatewayTests.swift",
@@ -161,7 +177,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/WeeklyGatewaySpeech20261025Tests.swift",
-      "sha256": "01ce3a86f8c3472398dd5dd30bb5222673a73ca779bcde40b154b65f67541b64"
+      "sha256": "850919600e4b45fa6c504230ce7342520ea22670bda1d2615c736d93b5853283"
     }
   ]
 }
