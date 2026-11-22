@@ -26,7 +26,7 @@ public final class GatewayDecisionModel: AIDecisionModelV4, @unchecked Sendable 
         try validateGatewayDecisionProviderOptions(options.providerOptions)
 
         var body: [String: JSONValue] = [
-            "stateParts": .array(try options.state.map(gatewayDecisionStatePart)),
+            "stateParts": .array(try options.state.map { try gatewayStatePart($0, model: .decision) }),
             "questions": .object(options.questions.mapValues(gatewayDecisionQuestion))
         ]
         if let maxOutputTokens = options.maxOutputTokens {
@@ -478,33 +478,11 @@ private func gatewayDecisionWarnings(
         throw gatewayDecisionResponseError(message: "Gateway decision warnings are invalid.", response: response, raw: raw)
     }
     return try values.map { warning in
-        guard let object = warning.objectValue,
-              let type = object["type"]?.stringValue else {
-            throw gatewayDecisionResponseError(message: "Gateway decision warning is invalid.", response: response, raw: raw)
-        }
-        switch type {
-        case "unsupported", "compatibility":
-            guard let feature = object["feature"]?.stringValue else {
-                throw gatewayDecisionResponseError(message: "Gateway decision warning is missing feature.", response: response, raw: raw)
-            }
-            return AIWarning(
-                type: type,
-                feature: feature,
-                message: object["details"]?.stringValue
-            )
-        case "deprecated":
-            guard let setting = object["setting"]?.stringValue,
-                  let message = object["message"]?.stringValue else {
-                throw gatewayDecisionResponseError(message: "Gateway decision deprecation warning is invalid.", response: response, raw: raw)
-            }
-            return AIWarning(type: type, setting: setting, message: message)
-        case "other":
-            guard let message = object["message"]?.stringValue else {
-                throw gatewayDecisionResponseError(message: "Gateway decision warning is missing message.", response: response, raw: raw)
-            }
-            return AIWarning(type: type, message: message)
-        default:
-            throw gatewayDecisionResponseError(message: "Gateway decision warning has unknown type \"\(type)\".", response: response, raw: raw)
+        do throws(GatewayWarningSchemaError) {
+            // Decision historically treats invalid optional details as absent.
+            return try gatewayModelWarning(warning, validateDetails: false)
+        } catch {
+            throw gatewayDecisionResponseError(message: "Gateway decision \(error.reason)", response: response, raw: raw)
         }
     }
 }
@@ -540,17 +518,6 @@ private func gatewayDecisionResponseError(
             responseBody: response.bodyText
         )
     )
-}
-
-private func gatewayDecisionStatePart(_ part: AIDecisionStatePart) throws -> JSONValue {
-    if case let .file(_, data, _, _) = part {
-        switch data {
-        case .data, .base64: break
-        case .url, .reference:
-            throw AIDecisionUnsupportedFunctionalityError(functionality: "Gateway decision file input requires data")
-        }
-    }
-    return decisionStatePartJSON(part)
 }
 
 public extension GatewayDecisionModel {

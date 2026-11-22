@@ -18,6 +18,36 @@ public func gatewayErrorFromHTTPStatus(statusCode: Int, body: String, headers: [
     gatewayErrorFromHTTPStatus(statusCode: statusCode, body: body, headers: headers, authMethod: nil)
 }
 
+public extension GatewayError {
+    /// Creates an AI Gateway access-policy denial with its optional policy metadata.
+    static func accessPolicyDenied(
+        message: String = "Access policy denied",
+        statusCode: Int = 403,
+        generationID: String? = nil,
+        policyIDs: [String]? = nil,
+        removedModels: [String]? = nil,
+        removedProviders: [String]? = nil,
+        cause: AIAPICallError? = nil
+    ) -> GatewayError {
+        let details = JSONValue.object([
+            "policyIds": policyIDs.map(JSONValue.array),
+            "removedModels": removedModels.map(JSONValue.array),
+            "removedProviders": removedProviders.map(JSONValue.array)
+        ])
+        return GatewayError(
+            type: .forbidden,
+            message: message,
+            statusCode: statusCode,
+            generationID: generationID,
+            response: .object([
+                "error": ["type": "access_policy_denied", "message": .string(message), "param": details],
+                "generationId": generationID.map(JSONValue.string)
+            ]),
+            cause: cause
+        )
+    }
+}
+
 /// Upstream `createGatewayErrorFromResponse` for a failed HTTP response.
 /// `authMethod` is the request's `ai-gateway-auth-method` header and selects
 /// the contextual authentication-error message.
@@ -202,7 +232,7 @@ private func gatewayErrorType(_ raw: String?) -> GatewayErrorType {
         return .notFound
     case GatewayErrorType.failedDependency.rawValue:
         return .failedDependency
-    case GatewayErrorType.forbidden.rawValue:
+    case GatewayErrorType.forbidden.rawValue, "access_policy_denied":
         return .forbidden
     case GatewayErrorType.internalServerError.rawValue:
         return .internalServerError

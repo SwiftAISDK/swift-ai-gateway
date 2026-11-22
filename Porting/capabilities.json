@@ -16,7 +16,8 @@
       "video",
       "reranking",
       "evaluation",
-      "decision"
+      "decision",
+      "extraction"
     ],
     "files": false,
     "skills": false,
@@ -30,6 +31,6 @@
         "description": "Vercel OIDC token, used when no API key is configured. Read for each request so refreshed tokens are picked up."
       }
     ],
-    "notes": "One provider for hundreds of models from many vendors through the Vercel AI Gateway: text, embeddings, images, video, speech, transcription, reranking, decisions, realtime and batches. It adds routing and fallback controls, Gateway-executed search tools and account APIs for credits and spend."
+    "notes": "One provider for hundreds of models from many vendors through the Vercel AI Gateway: text, embeddings, images, video, speech, transcription, reranking, decisions, realtime and batches. It adds routing and fallback controls, Gateway-executed search tools and account APIs for credits and spend. Includes native Extraction V4 and continuous Realtime Live alongside the turn-based route."
   }
 ]

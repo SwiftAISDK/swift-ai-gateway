@@ -18,6 +18,7 @@
         "packages/gateway/src/gateway-batch.test.ts",
         "packages/gateway/src/gateway-decision-model.test.ts",
         "packages/gateway/src/gateway-embedding-model.test.ts",
+        "packages/gateway/src/gateway-extraction-model.test.ts",
         "packages/gateway/src/gateway-fetch-metadata.test.ts",
         "packages/gateway/src/gateway-generation-info.test-d.ts",
         "packages/gateway/src/gateway-generation-info.test.ts",
@@ -28,6 +29,7 @@
         "packages/gateway/src/gateway-provider.test-d.ts",
         "packages/gateway/src/gateway-provider.test.ts",
         "packages/gateway/src/gateway-realtime-auth.test.ts",
+        "packages/gateway/src/gateway-realtime-model-live.test.ts",
         "packages/gateway/src/gateway-realtime-model.test.ts",
         "packages/gateway/src/gateway-reranking-model.test.ts",
         "packages/gateway/src/gateway-speech-model-stream.test.ts",
@@ -57,19 +59,26 @@
       "Sources/SwiftAIGateway/GatewayDecisionModel.swift",
       "Sources/SwiftAIGateway/GatewayErrors.swift",
       "Sources/SwiftAIGateway/GatewayEvaluationModel.swift",
+      "Sources/SwiftAIGateway/GatewayEvidence.swift",
+      "Sources/SwiftAIGateway/GatewayExtractionModel.swift",
       "Sources/SwiftAIGateway/GatewayLanguageWire.swift",
       "Sources/SwiftAIGateway/GatewayMediaModels.swift",
       "Sources/SwiftAIGateway/GatewayModels.swift",
       "Sources/SwiftAIGateway/GatewayParsing.swift",
       "Sources/SwiftAIGateway/GatewayProvider.swift",
       "Sources/SwiftAIGateway/GatewayRealtimeAuth.swift",
+      "Sources/SwiftAIGateway/GatewayRealtimeFactory.swift",
       "Sources/SwiftAIGateway/GatewayRealtimeModel.swift",
+      "Sources/SwiftAIGateway/GatewayRealtimeModelLive.swift",
       "Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
       "Sources/SwiftAIGateway/GatewayStreamingTranscriptionModel.swift"
     ],
     "tests": [
       "Tests/SwiftAIGatewayTests/FixtureDownloadTransport.swift",
+      "Tests/SwiftAIGatewayTests/GatewayAccessPolicyAndCatalogUpstreamTests.swift",
       "Tests/SwiftAIGatewayTests/GatewayBatchVideoAndTakoUpstreamParityTests.swift",
+      "Tests/SwiftAIGatewayTests/GatewayExtractionUpstreamTests.swift",
+      "Tests/SwiftAIGatewayTests/GatewayLiveUpstreamTests.swift",
       "Tests/SwiftAIGatewayTests/GatewaySpeechSocketTestSupport.swift",
       "Tests/SwiftAIGatewayTests/GatewayStreamingTranscriptionUpstreamParityTests.swift",
       "Tests/SwiftAIGatewayTests/GatewayTests.swift",
@@ -93,9 +102,13 @@
     {
       "kind": "native-adaptation",
       "reason": "2026-11-15: reviewed @ai-sdk/gateway 4.0.145 -> 4.0.146 with integrity-verified archives and exact matching-release tests. Source, declarations, changed scenarios and explicit remaining gaps are recorded in Docs/WeeklyUpstreamAudit20261115.json; no full-package or paid/live-service parity claim."
+    },
+    {
+      "kind": "native-adaptation",
+      "reason": "Gateway 4.0.152 preserves open String model IDs, uses typed Swift realtime events and resolves provider configuration through SwiftPM transports. The existing realtimeModel(_:) remains turn-based; experimentalRealtime selects Live when appropriate. Access policy denials keep the exact upstream discriminator and policy metadata in GatewayError while preserving the released Swift enum."
     }
   ],
-  "reviewNote": "M6: Gateway runtime, auth/configuration, management APIs, batch, media/decision adapters and focused tests extracted. Gateway error types stay in core for AIError.gateway, while provider error parsing is owned here. Shared core socket machinery is reused; existing behavior and gaps remain unchanged. 2026-11-01: reviewed @ai-sdk/gateway 4.0.126 -> 4.0.132 archives and release-matched tests 612be2311464804d1e4897afacbf8f3fc2f6d9e3 -> 028a025398782f4938303f48fbeee45c79af544b. Ported caller cancellation/timeout identity in HTTP/token and speech/audio-stream paths, including task cancellation without hanging. Callback keys refresh per send/connection and reject blank values; metadata errors do not re-resolve authentication. New model type literals already fit native open strings. Weekly20261101CancellationTests translate changed as-gateway-error/language/speech-stream/transcription tests. Duplex regression verifies fresh connection credentials, case-insensitive caller overrides and authentication subprotocols for speech and transcription. 2026-11-08: reviewed @ai-sdk/gateway 4.0.132 -> 4.0.138 published source/declarations and matching-release tests. Ported generation costs, shared transcription words/warnings, uploaded video results and DeepSeek provider tools. Added native normalized realtime client-secret/server codec and refreshed OIDC fallback; preserved additive structured tool errors in unary/stream results. Seed zero already native. Model IDs remain unrestricted Strings. Client-only image decoding option is stripped and warns: incremental binary JSON decoding/byte-valued image results remain a precise native gap; buffered base64 results are retained. No complete/live parity claim. 2026-11-14: reviewed @ai-sdk/gateway 4.0.138 -> 4.0.145 published archives/declarations and exact matching-release tests (0f3a85f92d1ce06ccde01d662407ef83e097a712 -> 8bc7652cdb13fc84722666eb93f45acd0d131eee). Package-specific changes, translated tests, known gaps and compatibility decisions are recorded in Docs/WeeklyUpstreamAudit20261114.json; package README describes consumer behavior. This delta review does not claim whole-package or live-service parity.",
+  "reviewNote": "M6: Gateway runtime, auth/configuration, management APIs, batch, media/decision adapters and focused tests extracted. Gateway error types stay in core for AIError.gateway, while provider error parsing is owned here. Shared core socket machinery is reused; existing behavior and gaps remain unchanged. 2026-11-01: reviewed @ai-sdk/gateway 4.0.126 -> 4.0.132 archives and release-matched tests 612be2311464804d1e4897afacbf8f3fc2f6d9e3 -> 028a025398782f4938303f48fbeee45c79af544b. Ported caller cancellation/timeout identity in HTTP/token and speech/audio-stream paths, including task cancellation without hanging. Callback keys refresh per send/connection and reject blank values; metadata errors do not re-resolve authentication. New model type literals already fit native open strings. Weekly20261101CancellationTests translate changed as-gateway-error/language/speech-stream/transcription tests. Duplex regression verifies fresh connection credentials, case-insensitive caller overrides and authentication subprotocols for speech and transcription. 2026-11-08: reviewed @ai-sdk/gateway 4.0.132 -> 4.0.138 published source/declarations and matching-release tests. Ported generation costs, shared transcription words/warnings, uploaded video results and DeepSeek provider tools. Added native normalized realtime client-secret/server codec and refreshed OIDC fallback; preserved additive structured tool errors in unary/stream results. Seed zero already native. Model IDs remain unrestricted Strings. Client-only image decoding option is stripped and warns: incremental binary JSON decoding/byte-valued image results remain a precise native gap; buffered base64 results are retained. No complete/live parity claim. 2026-11-14: reviewed @ai-sdk/gateway 4.0.138 -> 4.0.145 published archives/declarations and exact matching-release tests (0f3a85f92d1ce06ccde01d662407ef83e097a712 -> 8bc7652cdb13fc84722666eb93f45acd0d131eee). Package-specific changes, translated tests, known gaps and compatibility decisions are recorded in Docs/WeeklyUpstreamAudit20261114.json; package README describes consumer behavior. This delta review does not claim whole-package or live-service parity. The 4.0.146 -> 4.0.152 revision adds native Extraction V4, continuous Live WebSocket models with route-bound client secrets, and access-policy denial metadata. Exact matching-release refs 0e8e0543aeda7d4dd4ce6eade0d5b7d5a43644c1 -> 9b8c25e582bb2ca97e459ba3f8f6b325cb9dfb22 contain 39 and 41 test files. The changed portable cases are translated in GatewayExtractionUpstreamTests.swift, GatewayLiveUpstreamTests.swift and GatewayAccessPolicyAndCatalogUpstreamTests.swift. JavaScript model-ID code generation, dynamic invalid API literals, sparse arrays and injected text-as-file values have no corresponding Swift input contract. Verification covers the changed portable cases through mock transports.",
   "canonicalOnlyReferences": [],
   "canonicalDirectory": "Packages/swift-ai-gateway"
 }

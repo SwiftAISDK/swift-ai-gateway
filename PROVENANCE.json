@@ -1,52 +1,54 @@
 {
   "schemaVersion": 1,
   "package": "swift-ai-gateway",
-  "version": "1.4.0",
-  "releaseID": "upstream-parity-20261116",
+  "version": "1.5.0",
+  "releaseID": "weekly-upstream-20261122",
   "source": {
-    "commit": "1c457dea36be42376a6853aecd5c48ffc4942178",
-    "baseCommit": "1c457dea36be42376a6853aecd5c48ffc4942178",
+    "commit": "73e28c7d4106338c3030bc36700c5922aeb2ebd9",
+    "baseCommit": "73e28c7d4106338c3030bc36700c5922aeb2ebd9",
     "workingTree": false,
-    "inputsSHA256": "d7b8f52add7828d7e9ed20418fe072e7db03e75483a168bb7f5c34e9d2a04a13"
+    "inputsSHA256": "5b64cfae284ecf9a081f1c08d5b5dff83915b3c57b62669a3408e51a52961cb5"
   },
   "dependencies": [
     {
       "package": "swift-ai-core",
-      "from": "1.6.0"
+      "from": "1.7.0"
     }
   ],
   "changes": [
     {
-      "id": "upstream-parity-20261116",
-      "notes": "Language requests use the V4 call-option shape Gateway reads; results parse usage, finish reason and response metadata; streams forward error, file, custom, approval and response-metadata parts without duplicate tool calls. Authentication, malformed-body and network errors match upstream, observability headers are sent on Vercel, `availableModels()` caches for five minutes (`metadataCacheRefreshMillis`), a custom team header wins and `GatewayTools.exaSearch` and `GatewayRealtimeAuth` are added. Image, video and speech bodies and media errors match upstream; `maxImagesPerCall` is unlimited.",
-      "compatibility": "Source-compatible; changes are additive. Request bodies, results, warnings and errors change to match the reviewed upstream package."
+      "id": "weekly-upstream-20261122",
+      "notes": "Add native Extraction V4, route-aware Realtime Live sessions and typed access-policy denial details. Existing turn-based sessions and their token workflow remain available. Reviewed npm: @ai-sdk/gateway 4.0.146 to 4.0.152. Offline validation passed: node Scripts/test-packages.mjs (56 packages, 3672 owning tests and 1760 compatibility tests), generation, tooling, isolation, and version selection. See Docs/Archive/WeeklyUpstreamAudit20261122.md for retained gaps. Paid provider calls were skipped.",
+      "compatibility": "Additive factories and metadata. Requires SwiftAI Core 1.7.0 for source-compatible structured errors and correct retry handling."
     }
   ],
   "canonicalDirectory": "Packages/swift-ai-gateway",
   "upstream": [
     {
       "name": "@ai-sdk/gateway",
-      "reviewedVersion": "4.0.146",
+      "reviewedVersion": "4.0.152",
       "ledgerKind": "provider",
-      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/Archive/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/Archive/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/Archive/WeeklyUpstreamAudit20261114.json; 2026-11-15 delta: Docs/Archive/WeeklyUpstreamAudit20261115.json",
+      "evidence": "`AIProviders.gateway`, `GatewayProvider`, `GatewayModels.swift`, `GatewayStreamingTranscriptionModel.swift`, `GatewayTests.swift`, `Gateway*UpstreamParityTests.swift`; 2026-11-01 delta: Docs/Archive/WeeklyUpstreamAudit20261101.json; 2026-11-08 delta: Docs/Archive/WeeklyUpstreamAudit20261108.json; 2026-11-14 delta: Docs/Archive/WeeklyUpstreamAudit20261114.json; 2026-11-15 delta: Docs/Archive/WeeklyUpstreamAudit20261115.json; 2026-11-22 delta: Docs/Archive/WeeklyUpstreamAudit20261122.json",
       "reviewStatus": "imported-reviewed-with-gaps",
-      "archiveIntegrity": "sha512-rJ5NQSyjnpo6HSBEYc9Ff6k1EROUuB7KeAfHYVbVDsk68ynY0Eb8JeWflZKXlT6NhYgqyCiBDxE5blXWACXMKQ==",
-      "sourceRef": "npm:@ai-sdk/gateway@4.0.146",
-      "testRef": "0e8e0543aeda7d4dd4ce6eade0d5b7d5a43644c1",
+      "archiveIntegrity": "sha512-8LYMe0uMPbT3XW/Urhca52TSgHXAlQok74EUkWL3qXWJI7naTxJGSF6B7hvIHur+V6ttSyLLZN0rJk+Qu9psqA==",
+      "sourceRef": "npm:@ai-sdk/gateway@4.0.152",
+      "testRef": "9b8c25e582bb2ca97e459ba3f8f6b325cb9dfb22",
       "testRefRelationship": "matching-release",
       "contractFamilies": [
         "DecisionModelV4",
         "EmbeddingModelV4",
+        "ExtractionModelV4",
         "ImageModelV4",
         "LanguageModelV4",
         "ProviderV4",
+        "RealtimeModelV4",
         "RerankingModelV4",
         "SpeechModelV4",
         "StreamingSpeechModelV4",
         "TranscriptionModelV4",
         "VideoModelV4"
       ],
-      "contractReview": "2026-11-15: published source/declarations and exact matching-release tests reviewed separately. Native delta scenarios, per-file dispositions, unchanged-catalog evidence and explicit remaining gaps are recorded in Docs/Archive/WeeklyUpstreamAudit20261115.json. Required checks remain a separate gate; no full-package/live-service parity claim."
+      "contractReview": "2026-11-22: reviewed the published source and declarations and the matching-release test diffs. Native evidence and explicitly retained coverage gaps are in Docs/Archive/WeeklyUpstreamAudit20261122.json."
     }
   ],
   "note": "Independent port. Imported test refs and contract review gaps retain their original status; export is not new upstream parity proof.",
@@ -65,11 +67,11 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Porting/map.json",
-      "sha256": "3fb96d0ba0c8d8eee94964d397216a535753eecbcbdf21c2d90a2868d3322dfe"
+      "sha256": "e848d29a845ad842c15dc010ce20aa5bb002664e494342ce2be97f8c2ea76408"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/README.md",
-      "sha256": "d7e349316a2ff3a9c3d55b013b75a7f253a898cb327f7c79e11377e446ea53c5"
+      "sha256": "64ec4b3d4dd779cdf47103716a59af371a951002df98cfe07db38e1ae04cc889"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayConfiguration.swift",
@@ -77,15 +79,23 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayDecisionModel.swift",
-      "sha256": "8cbf5ec8635d25a988a90a47648913f7011143a3c0cb5c81fd4ca64d18c6fb2b"
+      "sha256": "4cf8ec199faa17d6e13ddad86c40feea95fcb13bb71eb4690eb7624e20c9ddf3"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayErrors.swift",
-      "sha256": "f39055d80dcf8545d97df8ca9e4ca944afe5f71161b9a00aa725db6e3a3771bf"
+      "sha256": "2fb70f81c0b77900d983d1fd73820f961ebc63f708b8e03276e4fe5e78cbf112"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayEvaluationModel.swift",
       "sha256": "a4ccf7fabeed3a30d92043fbe7b638dbc528216c903728013e6db1f3d56bb2e6"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayEvidence.swift",
+      "sha256": "ee8fdb8c00b7bf17905c408bd18f0d3f2ff70fea5696f815cb1332ff8b79eaba"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayExtractionModel.swift",
+      "sha256": "0f9b9df0d170b421ee17182ff3b28c5a41ab0887d8bea8412da9ac81a5434596"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayLanguageWire.swift",
@@ -105,15 +115,23 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayProvider.swift",
-      "sha256": "87bb9b0ff70c58e6d6a7ed3a29248d0aa8821a9e0477612845a573b0982303cc"
+      "sha256": "c805d2f708c9e735a4387ffea48353ee095d4148e288dfc4da97965a1efc51e3"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeAuth.swift",
       "sha256": "c68b5f1a1fdd0a2b8e16e05b95269f6f23f3b8721130f4eb0dde8142ae71807f"
     },
     {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeFactory.swift",
+      "sha256": "f65ed3c2b967a971923c1fbdc1548ee3454b09b52bf48d9ab5923229d0472562"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeModel.swift",
-      "sha256": "23facad7662e9b088dca053d6577bbd9eac35bd9dddbf395f46a358fb36b310e"
+      "sha256": "3e1abfbf4c34c36b456d8787b4898dcc6074781aa1d4232f89040d99b72f894c"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayRealtimeModelLive.swift",
+      "sha256": "a1edde2765723d4bb4d22b4a0cdbc669c5a8f77e63fb11b492140e0093fa48ed"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Sources/SwiftAIGateway/GatewayStreamingSpeechModel.swift",
@@ -128,8 +146,20 @@
       "sha256": "8cfac6634d0d36432d99ebd391a949b593e9eae65d263dc99d441a59fbf0a767"
     },
     {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayAccessPolicyAndCatalogUpstreamTests.swift",
+      "sha256": "518364744f587f098fa76f3cc6aba19f2179462d75ca2abddb1f562e17609d97"
+    },
+    {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayBatchVideoAndTakoUpstreamParityTests.swift",
       "sha256": "936c26f8624364b8d0873fd9d002974a8cd04faf75eaee8e8178ad1091370af1"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayExtractionUpstreamTests.swift",
+      "sha256": "f681f6b9ea634a11542674289e359f3adcaeca866c7e902508f09cf25f781e54"
+    },
+    {
+      "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayLiveUpstreamTests.swift",
+      "sha256": "7b8d000f197c7b5dcdab2af3341d8062e0cef983665f56a08d5f46c25edaa084"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewaySpeechSocketTestSupport.swift",
@@ -141,7 +171,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayTests.swift",
-      "sha256": "6cf66badecf1407a89179815dd3a16bd0c74cf11bff9d12a22043acb5bdd482e"
+      "sha256": "19e4e624ee498f855d551eceb94def8610e49e4bbee28b2772c7943b517c6a95"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/GatewayUpstreamParityAugust2026Tests.swift",
@@ -169,7 +199,7 @@
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261108RealtimeIntegrationTests.swift",
-      "sha256": "288b8109e7f80e9d78a5523400519b2eda4f6e4008c2280134abc5eac035976a"
+      "sha256": "44c709a0ae101fe27097147d02828e031a1353ee23370263c7f6dd7ac01fec37"
     },
     {
       "canonicalPath": "Packages/swift-ai-gateway/Tests/SwiftAIGatewayTests/Weekly20261114RoutingTests.swift",

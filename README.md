@@ -1,5 +1,5 @@
 <!-- Generated distribution; edit the canonical repository. -->
-# swift-ai-gateway 1.4.0
+# swift-ai-gateway 1.5.0
 
 Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions are in PROVENANCE.json and Porting/.
 
@@ -8,7 +8,7 @@ Independent Swift-native port of Vercel AI SDK. Source and upstream dispositions
 Add this package to your SwiftPM dependencies:
 
 ```swift
-.package(url: "https://github.com/SwiftAISDK/swift-ai-gateway.git", from: "1.4.0")
+.package(url: "https://github.com/SwiftAISDK/swift-ai-gateway.git", from: "1.5.0")
 ```
 
 Products: `SwiftAIGateway`.
@@ -18,7 +18,7 @@ Contribute and report issues in the canonical SwiftAISDK repository.
 
 # Vercel AI Gateway for Swift
 
-`SwiftAIGateway` adds Vercel AI Gateway to [SwiftAISDK](https://github.com/SwiftAISDK/SwiftAISDK), an independent Swift port of the Vercel AI SDK. It ports `@ai-sdk/gateway` and supports text generation, embeddings, image generation, transcription, speech, video generation, reranking, evaluation and decisions.
+`SwiftAIGateway` adds Vercel AI Gateway to [SwiftAISDK](https://github.com/SwiftAISDK/SwiftAISDK), an independent Swift port of the Vercel AI SDK. It ports `@ai-sdk/gateway` and supports text generation, embeddings, image generation, transcription, speech, video generation, reranking, decisions, evaluation, extraction, realtime, and continuous Live conversations.
 
 Provider guide with models, options, streaming and errors:
 

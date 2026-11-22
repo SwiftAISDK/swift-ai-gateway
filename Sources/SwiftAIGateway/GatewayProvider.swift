@@ -59,7 +59,7 @@ public struct GatewayModelPricing: Equatable, Sendable {
 /// Model types upstream keeps in the catalog; entries with any other
 /// non-null `modelType` are filtered out.
 let gatewayKnownModelTypes: Set<String> = [
-    "embedding", "decision", "evaluation", "image", "language", "realtime",
+    "embedding", "decision", "evaluation", "extraction", "image", "language", "realtime",
     "reranking", "speech", "transcription", "video"
 ]
 
@@ -260,9 +260,9 @@ public struct GatewayTranscriptionFactory: Sendable {
     }
 }
 
-public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecisionProvider, @unchecked Sendable {
+public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecisionProvider, AIExtractionProvider, @unchecked Sendable {
     public let providerID = "gateway"
-    public let supportedCapabilities: Set<ModelCapability> = [.language, .embedding, .image, .transcription, .speech, .video, .reranking, .evaluation, .decision]
+    public let supportedCapabilities: Set<ModelCapability> = [.language, .embedding, .image, .transcription, .speech, .video, .reranking, .evaluation, .decision, .extraction]
     private let config: GatewayModelConfiguration
     private let webSocketTransport: any AIDuplexWebSocketTransport
     let metadataCache: GatewayMetadataCache
@@ -318,7 +318,7 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         if normalizedHeaders["ai-gateway-auth-method"] == nil {
             settings.headers["ai-gateway-auth-method"] = auth.method
         }
-        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.146")
+        let headers = withUserAgentSuffix(settings.headers, "ai-sdk-gateway/4.0.152")
         let baseURL = withoutTrailingSlash(settings.baseURL ?? "https://ai-gateway.vercel.sh/v4/ai")
         let queryParams = settings.queryParams
         config = GatewayModelConfiguration(http: .init(providerID: providerID, headers: headers, transport: settings.transport, credentialResolver: credentialResolver,
@@ -336,9 +336,19 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
         GatewayLanguageModel(modelID: modelID, config: config)
     }
 
-    /// Gateway's normalized realtime protocol over native WebSockets.
+    /// Gateway's turn-based realtime protocol over native WebSockets.
     public func realtimeModel(_ modelID: String) -> GatewayRealtimeModel {
         GatewayRealtimeModel(modelID: modelID, config: config)
+    }
+
+    /// Gateway's continuous Live protocol over native WebSockets.
+    public func liveModel(_ modelID: String) -> GatewayRealtimeModelLive {
+        GatewayRealtimeModelLive(modelID: modelID, config: config)
+    }
+
+    /// Selects Live for known Live IDs and realtime for other models, with an optional route override.
+    public var experimentalRealtime: GatewayRealtimeFactory {
+        GatewayRealtimeFactory(config: config)
     }
 
     /// Provider-owned Batch V4 service. Gateway batches accept text requests
@@ -416,6 +426,16 @@ public final class GatewayProvider: AIProvider, AIEvaluationProvider, AIDecision
     }
 
     public func decision(_ modelID: String) throws -> any AIDecisionModelV4 { try decisionModel(modelID) }
+
+    /// Creates a model that extracts typed values from shared evidence.
+    public func extractionModel(_ modelID: String) -> any AIExtractionModelV4 {
+        extraction(modelID)
+    }
+
+    /// Creates a model that extracts typed values from shared evidence.
+    public func extraction(_ modelID: String) -> GatewayExtractionModel {
+        GatewayExtractionModel(modelID: modelID, config: config)
+    }
 
     public func evaluationModel(_ modelID: String) throws -> any AIEvaluationModelV4 {
         GatewayEvaluationModel(modelID: modelID, config: config)

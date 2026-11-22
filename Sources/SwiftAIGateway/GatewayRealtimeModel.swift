@@ -13,55 +13,27 @@ public struct GatewayRealtimeModel: AIRealtimeModelV4, Sendable {
     init(modelID: String, config: GatewayModelConfiguration) { self.modelID = modelID; self.config = config }
 
     public func doCreateClientSecret(_ options: AIRealtimeClientSecretOptions) async throws -> AIRealtimeClientSecretResult {
-        var body: [String: JSONValue] = ["model": .string(modelID)]
-        if let expires = options.expiresAfterSeconds { body["expiresIn"] = .number(Double(expires)) }
-        let response = try await config.transport.send(AIHTTPRequest(method: "POST", url: try gatewayOriginURL(baseURL: config.baseURL, path: "/v1/realtime/client-secrets"), headers: config.headers.mergingHeaders(["content-type": "application/json"]), body: try encodeJSONBody(.object(body)), abortSignal: options.abortSignal))
-        guard (200..<300).contains(response.statusCode) else { throw config.httpStatusError(response) }
-        let raw = try response.jsonValue()
-        guard let token = raw["token"]?.stringValue, !token.isEmpty else { throw AIError.invalidResponse(provider: providerID, message: "Gateway realtime client-secret response did not contain a non-empty token.") }
-        return .init(token: token, url: try websocketURL(), expiresAt: raw["expiresAt"]?.intValue)
+        try await gatewayRealtimeClientSecret(config: config, modelID: modelID, api: .realtime, options: options)
     }
+
     public func getWebSocketConfig(token: String, url: String) -> AIRealtimeWebSocketConfiguration {
-        var protocols = ["ai-gateway-realtime.v1", "ai-gateway-auth." + token]
-        if let team = normalizeHeaders(config.headers)["x-vercel-ai-gateway-team"], !team.isEmpty {
-            let encoded = Data(team.utf8).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
-            protocols.append("ai-gateway-team." + encoded)
-        }
-        return .init(url: url, protocols: protocols)
+        gatewayRealtimeClientWebSocketConfig(config: config, token: token, url: url)
     }
-    public func getServerWebSocketConfig() throws -> AIRealtimeWebSocketConfiguration { .init(url: try websocketURL(), headers: config.headers) }
-    public func getResolvedServerWebSocketConfig() async throws -> AIRealtimeWebSocketConfiguration { .init(url: try websocketURL(), headers: try await config.http.resolvedHeaders()) }
+
+    public func getServerWebSocketConfig() throws -> AIRealtimeWebSocketConfiguration {
+        .init(url: try websocketURL(), headers: config.headers)
+    }
+
+    public func getResolvedServerWebSocketConfig() async throws -> AIRealtimeWebSocketConfiguration {
+        .init(url: try websocketURL(), headers: try await config.http.resolvedHeaders())
+    }
+
     private func websocketURL() throws -> String {
-        guard var components = URLComponents(string: config.baseURL), let scheme = components.scheme, ["http", "https"].contains(scheme) else { throw AIError.invalidURL(config.baseURL) }
-        components.scheme = scheme == "https" ? "wss" : "ws"
-        components.path = withoutTrailingSlash(components.path) + "/realtime-model"
-        var allowed = CharacterSet.urlQueryAllowed; allowed.remove(charactersIn: "/?&=+")
-        components.percentEncodedQuery = "ai-model-id=" + (modelID.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")
-        guard let url = components.url else { throw AIError.invalidURL(config.baseURL) }
-        return url.absoluteString
+        try gatewayRealtimeWebSocketURL(baseURL: config.baseURL, modelID: modelID, api: .realtime)
     }
 
     public func buildSessionConfig(_ config: AIRealtimeSessionConfiguration) -> JSONValue {
-        var value: [String: JSONValue] = [:]
-        value["instructions"] = config.instructions.map(JSONValue.string)
-        value["voice"] = config.voice.map(JSONValue.string)
-        value["outputModalities"] = config.outputModalities.map { .array($0.map { .string($0.rawValue) }) }
-        func format(_ value: AIRealtimeAudioFormat?) -> JSONValue? {
-            value.map { .object(["type": .string($0.type), "rate": $0.rate.map { .number(Double($0)) }]) }
-        }
-        value["inputAudioFormat"] = format(config.inputAudioFormat)
-        value["outputAudioFormat"] = format(config.outputAudioFormat)
-        func transcription(_ value: AIRealtimeAudioTranscriptionConfiguration?) -> JSONValue? {
-            value.map { .object(["model": $0.model.map(JSONValue.string), "language": $0.language.map(JSONValue.string), "prompt": $0.prompt.map(JSONValue.string)]) }
-        }
-        value["inputAudioTranscription"] = transcription(config.inputAudioTranscription)
-        value["outputAudioTranscription"] = transcription(config.outputAudioTranscription)
-        if let detection = config.turnDetection {
-            value["turnDetection"] = .object(["type": .string(detection.type.rawValue), "threshold": detection.threshold.map(JSONValue.number), "silenceDurationMs": detection.silenceDurationMilliseconds.map { .number(Double($0)) }, "prefixPaddingMs": detection.prefixPaddingMilliseconds.map { .number(Double($0)) }])
-        }
-        value["tools"] = config.tools.map { .array($0.map { .object(["type": .string($0.type), "name": .string($0.name), "description": $0.description.map(JSONValue.string), "parameters": $0.parameters]) }) }
-        value["providerOptions"] = config.providerOptions.map(JSONValue.object)
-        return .object(value)
+        gatewayRealtimeSessionJSON(config)
     }
 
     public func serializeClientEvent(_ event: AIRealtimeClientEvent) async throws -> AIRealtimeWireMessage? {
@@ -98,44 +70,71 @@ public struct GatewayRealtimeModel: AIRealtimeModelV4, Sendable {
     }
 
     public func parseServerEvent(_ raw: JSONValue) -> [AIRealtimeServerEvent] {
+        Self.normalizedServerEvents(raw, providerPayload: raw)
+    }
+
+    static func normalizedServerEvents(_ raw: JSONValue, providerPayload: JSONValue) -> [AIRealtimeServerEvent] {
         func string(_ key: String) -> String { raw[key]?.stringValue ?? "" }
         let response = string("responseId"), item = string("itemId")
         let event: AIRealtimeServerEvent
         switch string("type") {
-        case "session-started": event = .sessionStarted(sessionID: string("sessionId"), delegationMode: raw["delegationMode"]?.stringValue.flatMap(AIRealtimeDelegationMode.init(rawValue:)), raw: raw)
-        case "session-closed": event = .sessionClosed(sessionID: raw["sessionId"]?.stringValue, usage: .init(seconds: raw["usage"]?["seconds"]?.doubleValue ?? 0), reason: string("reason"), raw: raw)
-        case "session-usage": event = .sessionUsage(usage: .init(seconds: raw["usage"]?["seconds"]?.doubleValue ?? 0), contextWindowUsageRatio: raw["contextWindowUsageRatio"]?.doubleValue, raw: raw)
-        case "audio-chunk": event = .audioChunk(delta: string("delta"), raw: raw)
-        case "transcript-fragment": event = .transcriptFragment(speaker: raw["speaker"]?.stringValue.flatMap(AIRealtimeTranscriptSpeaker.init(rawValue:)) ?? .user, delta: string("delta"), startMilliseconds: raw["startMs"]?.doubleValue ?? 0, endMilliseconds: raw["endMs"]?.doubleValue ?? 0, raw: raw)
-        case "delegation-created": event = .delegationCreated(delegationID: string("delegationId"), target: raw["target"]?.stringValue.flatMap(AIRealtimeDelegationMode.init(rawValue:)), offsetMilliseconds: raw["offsetMs"]?.doubleValue, responseID: raw["responseId"]?.stringValue, raw: raw)
-        case "command-acknowledged": event = .commandAcknowledged(command: string("command"), clientEventID: raw["clientEventId"]?.stringValue, raw: raw)
-        case "session-created": event = .sessionCreated(sessionID: raw["sessionId"]?.stringValue, raw: raw)
-        case "session-updated": event = .sessionUpdated(raw: raw)
-        case "speech-started": event = .speechStarted(itemID: raw["itemId"]?.stringValue, raw: raw)
-        case "speech-stopped": event = .speechStopped(itemID: raw["itemId"]?.stringValue, raw: raw)
-        case "audio-committed": event = .audioCommitted(itemID: raw["itemId"]?.stringValue, previousItemID: raw["previousItemId"]?.stringValue, raw: raw)
-        case "conversation-item-added": event = .conversationItemAdded(itemID: item, item: raw["item"] ?? .null, raw: raw)
-        case "input-transcription-completed": event = .inputTranscriptionCompleted(itemID: item, transcript: string("transcript"), raw: raw)
-        case "response-created": event = .responseCreated(responseID: response, raw: raw)
-        case "response-done": event = .responseDone(responseID: response, status: string("status"), raw: raw)
-        case "output-item-added": event = .outputItemAdded(responseID: response, itemID: item, raw: raw)
-        case "output-item-done": event = .outputItemDone(responseID: response, itemID: item, raw: raw)
-        case "content-part-added": event = .contentPartAdded(responseID: response, itemID: item, raw: raw)
-        case "content-part-done": event = .contentPartDone(responseID: response, itemID: item, raw: raw)
-        case "audio-delta": event = .audioDelta(responseID: response, itemID: item, delta: string("delta"), raw: raw)
-        case "audio-done": event = .audioDone(responseID: response, itemID: item, raw: raw)
-        case "audio-transcript-delta": event = .audioTranscriptDelta(responseID: response, itemID: item, delta: string("delta"), raw: raw)
-        case "audio-transcript-done": event = .audioTranscriptDone(responseID: response, itemID: item, transcript: raw["transcript"]?.stringValue, raw: raw)
-        case "text-delta": event = .textDelta(responseID: response, itemID: item, delta: string("delta"), raw: raw)
-        case "text-done": event = .textDone(responseID: response, itemID: item, text: raw["text"]?.stringValue, raw: raw)
-        case "function-call-arguments-delta": event = .functionCallArgumentsDelta(responseID: response, itemID: item, callID: string("callId"), delta: string("delta"), raw: raw)
-        case "function-call-arguments-done": event = .functionCallArgumentsDone(responseID: response, itemID: item, callID: string("callId"), name: string("name"), arguments: string("arguments"), raw: raw)
+        case "session-started": event = .sessionStarted(sessionID: string("sessionId"), delegationMode: raw["delegationMode"]?.stringValue.flatMap(AIRealtimeDelegationMode.init(rawValue:)), raw: providerPayload)
+        case "session-closed": event = .sessionClosed(sessionID: raw["sessionId"]?.stringValue, usage: .init(seconds: raw["usage"]?["seconds"]?.doubleValue ?? 0), reason: string("reason"), raw: providerPayload)
+        case "session-usage": event = .sessionUsage(usage: .init(seconds: raw["usage"]?["seconds"]?.doubleValue ?? 0), contextWindowUsageRatio: raw["contextWindowUsageRatio"]?.doubleValue, raw: providerPayload)
+        case "audio-chunk": event = .audioChunk(delta: string("delta"), raw: providerPayload)
+        case "transcript-fragment": event = .transcriptFragment(speaker: raw["speaker"]?.stringValue.flatMap(AIRealtimeTranscriptSpeaker.init(rawValue:)) ?? .user, delta: string("delta"), startMilliseconds: raw["startMs"]?.doubleValue ?? 0, endMilliseconds: raw["endMs"]?.doubleValue ?? 0, raw: providerPayload)
+        case "delegation-created": event = .delegationCreated(delegationID: string("delegationId"), target: raw["target"]?.stringValue.flatMap(AIRealtimeDelegationMode.init(rawValue:)), offsetMilliseconds: raw["offsetMs"]?.doubleValue, responseID: raw["responseId"]?.stringValue, raw: providerPayload)
+        case "command-acknowledged": event = .commandAcknowledged(command: string("command"), clientEventID: raw["clientEventId"]?.stringValue, raw: providerPayload)
+        case "session-created": event = .sessionCreated(sessionID: raw["sessionId"]?.stringValue, raw: providerPayload)
+        case "session-updated": event = .sessionUpdated(raw: providerPayload)
+        case "speech-started": event = .speechStarted(itemID: raw["itemId"]?.stringValue, raw: providerPayload)
+        case "speech-stopped": event = .speechStopped(itemID: raw["itemId"]?.stringValue, raw: providerPayload)
+        case "audio-committed": event = .audioCommitted(itemID: raw["itemId"]?.stringValue, previousItemID: raw["previousItemId"]?.stringValue, raw: providerPayload)
+        case "conversation-item-added": event = .conversationItemAdded(itemID: item, item: raw["item"] ?? .null, raw: providerPayload)
+        case "input-transcription-completed": event = .inputTranscriptionCompleted(itemID: item, transcript: string("transcript"), raw: providerPayload)
+        case "response-created": event = .responseCreated(responseID: response, raw: providerPayload)
+        case "response-done": event = .responseDone(responseID: response, status: string("status"), raw: providerPayload)
+        case "output-item-added": event = .outputItemAdded(responseID: response, itemID: item, raw: providerPayload)
+        case "output-item-done": event = .outputItemDone(responseID: response, itemID: item, raw: providerPayload)
+        case "content-part-added": event = .contentPartAdded(responseID: response, itemID: item, raw: providerPayload)
+        case "content-part-done": event = .contentPartDone(responseID: response, itemID: item, raw: providerPayload)
+        case "audio-delta": event = .audioDelta(responseID: response, itemID: item, delta: string("delta"), raw: providerPayload)
+        case "audio-done": event = .audioDone(responseID: response, itemID: item, raw: providerPayload)
+        case "audio-transcript-delta": event = .audioTranscriptDelta(responseID: response, itemID: item, delta: string("delta"), raw: providerPayload)
+        case "audio-transcript-done": event = .audioTranscriptDone(responseID: response, itemID: item, transcript: raw["transcript"]?.stringValue, raw: providerPayload)
+        case "text-delta": event = .textDelta(responseID: response, itemID: item, delta: string("delta"), raw: providerPayload)
+        case "text-done": event = .textDone(responseID: response, itemID: item, text: raw["text"]?.stringValue, raw: providerPayload)
+        case "function-call-arguments-delta": event = .functionCallArgumentsDelta(responseID: response, itemID: item, callID: string("callId"), delta: string("delta"), raw: providerPayload)
+        case "function-call-arguments-done": event = .functionCallArgumentsDone(responseID: response, itemID: item, callID: string("callId"), name: string("name"), arguments: string("arguments"), raw: providerPayload)
         case "error":
-            if let id = raw["clientEventId"]?.stringValue { event = .correlatedError(message: string("message"), code: raw["code"]?.stringValue, clientEventID: id, raw: raw) }
-            else { event = .error(message: string("message"), code: raw["code"]?.stringValue, raw: raw) }
-        case "custom": event = .custom(rawType: string("rawType"), raw: raw)
+            if let id = raw["clientEventId"]?.stringValue { event = .correlatedError(message: string("message"), code: raw["code"]?.stringValue, clientEventID: id, raw: providerPayload) }
+            else { event = .error(message: string("message"), code: raw["code"]?.stringValue, raw: providerPayload) }
+        case "custom": event = .custom(rawType: string("rawType"), raw: providerPayload)
         default: event = .custom(rawType: string("type"), raw: raw)
         }
         return [event]
     }
+}
+
+func gatewayRealtimeSessionJSON(_ config: AIRealtimeSessionConfiguration) -> JSONValue {
+    var value: [String: JSONValue] = [:]
+    value["instructions"] = config.instructions.map(JSONValue.string)
+    value["voice"] = config.voice.map(JSONValue.string)
+    value["outputModalities"] = config.outputModalities.map { .array($0.map { .string($0.rawValue) }) }
+    func format(_ value: AIRealtimeAudioFormat?) -> JSONValue? {
+        value.map { .object(["type": .string($0.type), "rate": $0.rate.map { .number(Double($0)) }]) }
+    }
+    value["inputAudioFormat"] = format(config.inputAudioFormat)
+    value["outputAudioFormat"] = format(config.outputAudioFormat)
+    func transcription(_ value: AIRealtimeAudioTranscriptionConfiguration?) -> JSONValue? {
+        value.map { .object(["model": $0.model.map(JSONValue.string), "language": $0.language.map(JSONValue.string), "prompt": $0.prompt.map(JSONValue.string)]) }
+    }
+    value["inputAudioTranscription"] = transcription(config.inputAudioTranscription)
+    value["outputAudioTranscription"] = transcription(config.outputAudioTranscription)
+    if let detection = config.turnDetection {
+        value["turnDetection"] = .object(["type": .string(detection.type.rawValue), "threshold": detection.threshold.map(JSONValue.number), "silenceDurationMs": detection.silenceDurationMilliseconds.map { .number(Double($0)) }, "prefixPaddingMs": detection.prefixPaddingMilliseconds.map { .number(Double($0)) }])
+    }
+    value["tools"] = config.tools.map { .array($0.map { .object(["type": .string($0.type), "name": .string($0.name), "description": $0.description.map(JSONValue.string), "parameters": $0.parameters]) }) }
+    value["providerOptions"] = config.providerOptions.map(JSONValue.object)
+    return .object(value)
 }
